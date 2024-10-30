@@ -1,27 +1,18 @@
 % Baseband modulation and demodulation demo
 
-% T = 0.5 ms
+% T = 1 ms
 
 % Parameters
 % LL = 100; % Total number of bits Default is 100
-N = 51; % Length of filter in symbol periods. Default is 51
-fs = 100; % Over-sampling factor (Sampling frequency/symbol rate). Default is 100
-% 200 / 0.5
-sigma_n = 1; % Noise standard deviation. Default is 1
-delay = 0; % Offset from optimum sampling point (as fraction of symbol period). Try either 0 or 1/2
-
-% Initialize random number generator
-rng(0);
-clc
-
+N = 56; % Length of filter in symbol periods. Default is 51
+% adds to final bit number
+fs = 2; % Over-sampling factor (Sampling frequency/symbol rate). Default is 100
 
 Ns = floor(N*fs); % Number of filter samples
 
 
 
 % **********************************************************
-% Modulation
-LL = 1440;
 
 % Create i.i.d. bits
 %bits = (randn(LL,1) > 0.5);
@@ -32,16 +23,21 @@ bits = reshape(cdata, [1440,1]);
 xk = 2*bits-1;
 
 % Choose sinc pulse
-pt = sinc([-floor(Ns/2):Ns-floor(Ns/2)-1]/fs); pt = transpose(pt)/norm(pt)/sqrt(1/(fs)); % '1/fs' simply serves as 'delta' to approximate integral as sum
-pt
+pt = sinc([-floor(Ns/2):Ns-floor(Ns/2)-1]/fs); 
+pt = transpose(pt)/norm(pt)/sqrt(1/(fs)); % '1/fs' simply serves as 'delta' to approximate integral as sum
 
 % Create baseband signal
 xk_up = upsample(xk,fs);
 xt = conv(xk_up,pt);
-len = length(xt);
+% len = length(xt);
 
 %xt is the signal we want to transmit
+transmitsignal = xt;
+save("transmitsignal.mat", "transmitsignal");
 
+% from studentdemo.m
+%plot([0:length(transmitsignal)-1]/length(transmitsignal)-0.5, abs(fftshift(fft(transmitsignal))))
+plot([0:length(transmitsignal)-1]/length(transmitsignal)-0.5, abs(fftshift(fft(transmitsignal))))
 
 % % **********************************************************
 % % Channel
