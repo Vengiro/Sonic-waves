@@ -14,15 +14,19 @@ fs = 200e6;    % Sampled frequency of the signal
 T =  (400e-6)/720;    % Period of a symbol (400μs and Passband signal 2 bits per symbol and 1440 bits to transmit)
 t_pulse = -5*T:1/fs:5*T;   % Pulse time vector
 pulse = sinc(t_pulse / T);   % sinc pulse 
-ov_samp = fs*T;   % Over-sampling factor (Sampling frequency/symbol rate)
+ov_samp = round(fs*T);   % Over-sampling factor (Sampling frequency/symbol rate)
 
+% Show pulse plot and frequency plot
 figure;
 plot(t_pulse, pulse);
+xlabel('μs');
 F_pulse = fftshift(fft(pulse));           
 len = length(t_pulse);
 fr = linspace(-0.5, 0.5, len)*fs;
 figure;
+
 plot(fr, abs(F_pulse/len));
+xlabel('Hz');
 
 
 % image's bits
@@ -33,11 +37,11 @@ xI = 2 * bits(:, 1) - 1;
 xQ = 2 * bits(:, 2) - 1; 
 
 % Upsample to match pulse 
-XI_up = upsample(xI,ov_samp);
-XQ_up = upsample(xQ,ov_samp);
+xI_up = upsample(xI,ov_samp);
+xQ_up = upsample(xQ,ov_samp);
 
-xI_con = conv(XI_up, p_t, 'same'); % Shape I component
-xQ_con = conv(XQ_up, p_t, 'same'); % Shape Q component
+xI_con = conv(XI_up, pulse, 'same'); % Shape I component
+xQ_con = conv(XQ_up, pulse, 'same'); % Shape Q component
 
 % Combine I and Q to create complex baseband signal
 x_t = xI_con + 1j * xQ_con;
@@ -62,26 +66,26 @@ x_t = xI_con + 1j * xQ_con;
 % Create i.i.d. bits
 %bits = (randn(LL,1) > 0.5);
 % documentation: reshape
-bits = reshape(cdata, [1440,1]);
+%bits = reshape(cdata, [1440,1]);
 
-% 2-PAM mapping to symbols
-xk = 2*bits-1;
-
-% Choose sinc pulse
-pt = sinc([-floor(Ns/2):Ns-floor(Ns/2)-1]/fs); 
-pt = transpose(pt)/norm(pt)/sqrt(1/(fs)); % '1/fs' simply serves as 'delta' to approximate integral as sum
-
-% Create baseband signal
-xk_up = upsample(xk,fs);
-xt = conv(xk_up,pt);
-% len = length(xt);
-
-%xt is the signal we want to transmit
-transmitsignal = xt;
-save("transmitsignal.mat", "transmitsignal");
-
-% from studentdemo.m
-%plot([0:length(transmitsignal)-1]/length(transmitsignal)-0.5, abs(fftshift(fft(transmitsignal))))
+% % 2-PAM mapping to symbols
+% xk = 2*bits-1;
+% 
+% % Choose sinc pulse
+% pt = sinc([-floor(Ns/2):Ns-floor(Ns/2)-1]/fs); 
+% pt = transpose(pt)/norm(pt)/sqrt(1/(fs)); % '1/fs' simply serves as 'delta' to approximate integral as sum
+% 
+% % Create baseband signal
+% xk_up = upsample(xk,fs);
+% xt = conv(xk_up,pt);
+% % len = length(xt);
+% 
+% %xt is the signal we want to transmit
+% transmitsignal = xt;
+% save("transmitsignal.mat", "transmitsignal");
+% 
+% % from studentdemo.m
+% %plot([0:length(transmitsignal)-1]/length(transmitsignal)-0.5, abs(fftshift(fft(transmitsignal))))
 
 
 % % **********************************************************
