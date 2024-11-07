@@ -44,15 +44,15 @@ xI_con = conv(xI_up, pulse,'same'); % Shape I component
 xQ_con = conv(xQ_up, pulse,'same'); % Shape Q component
 
 % Combine I and Q to create complex baseband signal
-x_t = xI_con + 1j * xQ_con;
+xt = xI_con + 1j * xQ_con;
 
-% Scale x_t to ensure |xI(t)| < 1 and |xQ(t)| < 1
-max_val = max(abs([real(x_t); imag(x_t)]));
-x_t = x_t / max_val;
+% Scale xt to ensure |xI(t)| < 1 and |xQ(t)| < 1
+max_val = max(abs([real(xt); imag(xt)]));
+xt = xt / max_val;
 
 
 
-transmitsignal = x_t;
+transmitsignal = xt;
 save('transmitsignal.mat', 'transmitsignal');
 
 
