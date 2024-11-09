@@ -1,0 +1,61 @@
+% this is my version of the receiver-- it's wrong but I want a record of what I was doing/thinking
+% I started changing it to match receiver.m
+
+% receiver
+% baseband modulation
+
+load('receivedsignal.mat');
+% receivedsignal is an 89600x1 complex double vector (size subject to
+% change)
+
+% Parameters from "transmitter" code
+t_constr = 400e-6; 
+LL = 1440; % Total number of bits 
+fs = 200e6;    % Sampled frequency of the signal
+T =  t_constr/LL;    % Period of a symbol (400μs and Passband signal 2 bits per symbol and 1440 bits to transmit)
+ov_samp = floor(fs*T);   % Over-sampling factor (Sampling frequency/symbol rate)
+N = 11; % Length of filter in symbol periods.
+Ns = floor(N*ov_samp); % Number of filter samples
+t_pulse = -floor(Ns/2):floor(Ns/2);   % Pulse time vector
+pulse = sinc(t_pulse/ov_samp);   % sinc pulse
+norm(pulse);
+pulse = transpose(pulse)/norm(pulse)/sqrt(1/ov_samp);
+
+% Demodulator
+
+% create I, Q vectors
+xI = real(receivedsignal);
+xQ = imag(receivedsignal);
+
+% multiply received signal by matched filter
+% matched filter p(-t)? use sinc pulse again, I think
+xI_f = conv(xI, pulse, 'same');
+xQ_f = conv(xQ, pulse, 'same');
+x_f = conv(receivedsignal, pulse, 'same');
+
+% sample at t = kT "downsample"
+xI_d = downsample(xI_f, ov_samp);
+xQ_d = downsample(xQ_f, ov_samp);
+x_d = downsample(x_f, ov_samp);
+
+% Detector
+% symbols to bits: map positive to 1, negative to -1
+% use the norm of I and Q here (but probably could use just I here?)
+% idea: there's no need to split up I and Q here
+bits = sign(x_d);
+
+%save('receivedimage.bmp', 'bits');
+
+% I assume we have to calculate the BER too
+% how do we evaluate BER?
+
+load("transmitsignal.mat");
+
+% issue: we can't just compute the difference by checking difference at
+% each bit, because received is larger than transmit.
+% from GitHub
+
+bits = reshape(bits, [45, 32]); %doesn't work-- vector is wrong size
+
+imwrite(real(bits), 'receivedimage.bmp');
+disp('receivedimage.bmp');
