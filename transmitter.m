@@ -5,10 +5,16 @@ sync_size = 100;
 r = rand(1, sync_size);
 time_sync = transpose(round(r));
 
+% Equalizer
+pilot_size = 50;
+pilot = transpose(round(rand(1, pilot_size)));
+period_pilot = 500;
+
 
 % Parameters
+sign_len = 1440;
 t_constr = 400e-6; 
-LL = 1440 + sync_size; % Total number of bits 
+LL = sign_len + sync_size + pilot_size*ceil(sign_len/period_pilot); % Total number of bits 
 fs = 200e6;    % Sampled frequency of the signal
 T =  t_constr/LL;    % Period of a symbol (400μs and Passband signal 2 bits per symbol and 1440 bits to transmit)
 ov_samp = floor(fs*T);   % Over-sampling factor (Sampling frequency/symbol rate)
@@ -35,6 +41,23 @@ xlabel('Hz');
 % image's bits
 bits = reshape(cdata, size(cdata,1) * size(cdata,2), 1);
 
+% Insert pilots
+% Allocate the array suggested by MATLAB
+num_pilot = ceil(sign_len/period_pilot);
+appended = zeros(sign_len + pilot_size*num_pilot, 1);
+ind = 1;
+for i = 1:(period_pilot+pilot_size):length(appended)
+    end_index_bits = min(ind + period_pilot - 1, sign_len);
+    end_index_app = min(pilot_size + i + period_pilot - 1, length(appended));
+
+    appended(i : pilot_size+i-1) = pilot;
+    appended(pilot_size+i : end_index_app) = bits(ind : end_index_bits);
+    ind = ind + period_pilot;
+end
+
+bits = appended;
+
+% append timing recovery sequence
 bits = [time_sync; bits];
 
 
