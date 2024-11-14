@@ -5,7 +5,7 @@ yt = receivedsignal;
 
 % Timing recovery 
 window = T/8;
-num_T_values = 100;
+num_T_values = 101;
 T_range =  linspace(T-window, T+window, num_T_values);  % Range of T values to test
 max_corr_val = -inf;
 best_T = 0;
