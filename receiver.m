@@ -4,9 +4,9 @@ yt = receivedsignal;
 
 
 % Timing recovery 
-half_T = T/2;
+window = T/8;
 num_T_values = 100;
-T_range =  linspace(T-half_T, T+half_T, num_T_values);  % Range of T values to test
+T_range =  linspace(T-window, T+window, num_T_values);  % Range of T values to test
 max_corr_val = -inf;
 best_T = 0;
 best_tau = 0;
@@ -28,7 +28,7 @@ for T_i = T_range
 
 
     % Truncate z_received to match the size of z_ideal for correlation
-    for tau = 1:1000
+    for tau = 1:(ov_samp*5+1000)
         y_received = yt(tau:size(y_ideal, 1)+tau-1);
         max_val = dot(y_ideal, y_received);
 
@@ -119,7 +119,7 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
     % receiver knows original pilot sequence = pilot
    
     % using transpose in place of hermitian
-    h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot)
+    h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot);
 
     % detector
     % vk = zk/h0

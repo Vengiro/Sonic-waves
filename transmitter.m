@@ -1,7 +1,7 @@
 % Baseband modulation
 
 % Timing sync
-sync_size = 100;
+sync_size = 200;
 r = rand(1, sync_size);
 time_sync = transpose(round(r));
 
