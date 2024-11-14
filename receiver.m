@@ -87,13 +87,60 @@ zk_norec = zk_norec(1:LL);
 % legend('Received Symbols', 'Ideal Symbol Locations');
 % hold off;
 
+% One-tap equalizer
+% for 1440, zk is size 1690
+% timing sync + 3 * ( pilot + message component)
+
+% timing sync is at the beginning, and has already been used to find the
+% best tau and T for sampling
+% zk_len = size(zk, 1);
+% zk = zk(sync_size + 1:zk_len);
+
+% for loop: for each segment with pilot then message,
+% extract h0 from pilot, apply to message, and add to msg_bits
+
+appended = zeros(sign_len, 1);
+
+% this tracks the loop number so that the correct place in message_number
+% is filled in
+msg_idx = 0;
+
+for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
+
+    % pilot sequence has length pilot_size
+    pilot_bits = zk(sync_size + i:sync_size + i + pilot_size - 1);
+
+    % message sequence is immediately after the pilot sequence
+    message_end_index = min(length(zk), sync_size + i + period_pilot + pilot_size - 1);
+
+    message_bits = zk(sync_size + i + pilot_size: message_end_index);
+
+    % use pilot sequence to find h0
+    % receiver knows original pilot sequence = pilot
+    x = pilot;
+    z = pilot_bits;
+    % using transpose in place of hermitian
+    h0_hat = transpose(x) * z / (norm(x) ^ 2);
+
+    % detector
+    % vk = zk/h0
+    vk = message_bits / h0_hat;
+
+    appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
+
+    msg_idx = msg_idx + 1;
+    
+end
+
 
 % Detection
-xk_hat = sign(zk);
+% xk_hat = sign(zk);
+xk_hat = sign(appended);
 bits_hat = (xk_hat>=0);
+% bits_hat = [time_sync; bits_hat];
 
 % Compute Bit Error Rate (BER)
-BER = mean(bits_hat ~= bits);
+BER = mean(bits_hat ~= bits_original);
 disp(['BER is ', num2str(BER)])
 
 % % Find error locations
@@ -124,7 +171,9 @@ img_height = 45;
 img_width = 32;
 
 % Convert bits to pixel values (0 for black, 255 for white)
-img_pixels = uint8(bits_hat(sync_size+1:end) * 255);
+% img_pixels = uint8(bits_hat(sync_size+1:end) * 255);
+img_pixels = uint8(bits_hat * 255);
+
 
 % Reshape the array to match the image dimensions
 img_matrix = reshape(img_pixels, img_height, img_width);
