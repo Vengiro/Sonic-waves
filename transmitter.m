@@ -6,9 +6,9 @@ r = rand(1, sync_size);
 time_sync = transpose(round(r));
 
 % Equalizer
-pilot_size = 50;
+pilot_size = 10;
 pilot = transpose(round(rand(1, pilot_size)));
-period_pilot = 500;
+period_pilot = 100;
 
 % Parameters
 sign_len = 1440;

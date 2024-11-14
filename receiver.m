@@ -108,7 +108,7 @@ msg_idx = 0;
 for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     % pilot sequence has length pilot_size
-    pilot_bits = zk(sync_size + i:sync_size + i + pilot_size - 1);
+    pilot_received = zk(sync_size + i:sync_size + i + pilot_size - 1);
 
     % message sequence is immediately after the pilot sequence
     message_end_index = min(length(zk), sync_size + i + period_pilot + pilot_size - 1);
@@ -117,10 +117,9 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     % use pilot sequence to find h0
     % receiver knows original pilot sequence = pilot
-    x = pilot;
-    z = pilot_bits;
+   
     % using transpose in place of hermitian
-    h0_hat = transpose(x) * z / (norm(x) ^ 2);
+    h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot)
 
     % detector
     % vk = zk/h0
@@ -142,28 +141,31 @@ bits_hat = (xk_hat>=0);
 % Compute Bit Error Rate (BER)
 BER = mean(bits_hat ~= bits_original);
 disp(['BER is ', num2str(BER)])
+zk = (zk>=0);
+BER = mean(zk(1:100) ~= bits(1:100));
+disp(['BER for timing sync is ', num2str(BER)])
 
-% % Find error locations
-% error_locations = (bits_hat ~= bits);
-% 
-% figure;
-% hold on;
-% 
-% % Plot transmitted bits in blue
-% stem(bits, 'b', 'DisplayName', 'Transmitted Bits');
-% % Plot received bits in red with some vertical offset for clarity
-% stem(bits_hat + 0.1, 'r', 'DisplayName', 'Received Bits');
-% 
-% % Highlight bit errors in black
-% stem(find(error_locations), bits(error_locations), 'k', 'LineWidth', 1.5, 'DisplayName', 'Errors');
-% 
-% % Add labels and legend
-% xlabel('Bit Index');
-% ylabel('Bit Value');
-% title('Transmitted vs. Received Bits');
-% legend('Location', 'best');
-% grid on;
-% hold off;
+% Find error locations
+error_locations = (bits_hat ~= bits_original);
+
+figure;
+hold on;
+
+% Plot transmitted bits in blue
+stem(bits_original, 'b', 'DisplayName', 'Transmitted Bits');
+% Plot received bits in red with some vertical offset for clarity
+stem(bits_hat + 0.1, 'r', 'DisplayName', 'Received Bits');
+
+% Highlight bit errors in black
+stem(find(error_locations), bits(error_locations), 'k', 'LineWidth', 1.5, 'DisplayName', 'Errors');
+
+% Add labels and legend
+xlabel('Bit Index');
+ylabel('Bit Value');
+title('Transmitted vs. Received Bits');
+legend('Location', 'best');
+grid on;
+hold off;
 
 
 % Store Image
