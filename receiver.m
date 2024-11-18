@@ -57,20 +57,7 @@ zk_norec = zk_norec(1:LL);
 
 % I/Q signal space: constellation and samples decoded
 % Assuming zk contains complex values
-figure;
-scatter(real(zk), imag(zk), 'filled'); % Scatter plot of real vs imaginary parts of zk
 
-% Plot formatting
-xlabel('Real Part');
-ylabel('Imaginary Part');
-title('Constellation Diagram of z_k');
-grid on;
-
-% Optional: Add reference points for the ideal constellation points
-hold on;
-scatter([-1, 1], [0, 0], 'rx', 'LineWidth', 2); % Ideal points for BPSK (e.g., -1 and 1 on the real axis)
-legend('Received Symbols', 'Ideal Symbol Locations');
-hold off;
 % 
 % % Assuming zk contains complex values
 % figure;
@@ -101,6 +88,7 @@ hold off;
 % extract h0 from pilot, apply to message, and add to msg_bits
 
 appended = zeros(sign_len, 1);
+non_equalized = zeros(sign_len, 1);
 
 % this tracks the loop number so that the correct place in message_number
 % is filled in
@@ -127,11 +115,41 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
     vk = message_bits / h0_hat;
 
     appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
+    non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
 
     msg_idx = msg_idx + 1;
     
 end
 
+figure;
+scatter(real(appended), imag(appended), 'filled'); % Scatter plot of real vs imaginary parts of zk
+
+% Plot formatting
+xlabel('Real Part');
+ylabel('Imaginary Part');
+title('Constellation Diagram of equalized signal');
+grid on;
+
+% Optional: Add reference points for the ideal constellation points
+hold on;
+scatter([-1, 1], [0, 0], 'rx', 'LineWidth', 2); % Ideal points for BPSK (e.g., -1 and 1 on the real axis)
+legend('Received Symbols', 'Ideal Symbol Locations');
+hold off;
+
+figure;
+scatter(real(non_equalized), imag(non_equalized), 'filled'); % Scatter plot of real vs imaginary parts of zk
+
+% Plot formatting
+xlabel('Real Part');
+ylabel('Imaginary Part');
+title('Constellation Diagram of non equalized signal');
+grid on;
+
+% Optional: Add reference points for the ideal constellation points
+hold on;
+scatter([-1, 1], [0, 0], 'rx', 'LineWidth', 2); % Ideal points for BPSK (e.g., -1 and 1 on the real axis)
+legend('Received Symbols', 'Ideal Symbol Locations');
+hold off;
 
 % Detection
 % xk_hat = sign(zk);
