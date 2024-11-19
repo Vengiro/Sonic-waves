@@ -4,10 +4,12 @@
 sync_size = 200;
 r = rand(1, sync_size);
 time_sync = transpose(round(r));
+time_sync = 2*time_sync - 1;
 
 % Equalizer
 pilot_size = 10;
 pilot = transpose(round(rand(1, pilot_size)));
+pilot = 2*pilot - 1;
 period_pilot = 100;
 
 % Parameters
@@ -42,6 +44,27 @@ xlabel('Hz');
 bits = reshape(cdata, size(cdata,1) * size(cdata,2), 1);
 bits_original = reshape(cdata, size(cdata,1) * size(cdata,2), 1);
 
+% Transform 4 bits to 1 symbol
+% Group bits into chunks of 4
+bits_reshaped = reshape(bits, 4, []).'; % Each row is 4 bits
+
+% Gray-coded mapping for 16QAM (real, imaginary)
+% The rows correspond to the binary representation of the symbols
+mapping = [
+    -1.5 - 1.5j; -0.5 - 1.5j;  1.5 - 1.5j;  0.5 - 1.5j;
+    -1.5 - 0.5j; -0.5 - 0.5j;  1.5 - 0.5j;  0.5 - 0.5j;
+    -1.5 + 1.5j; -0.5 + 1.5j;  1.5 + 1.5j;  0.5 + 1.5j;
+    -1.5 + 0.5j; -0.5 + 0.5j;  1.5 + 0.5j;  0.5 + 0.5j
+];
+
+% Convert binary groups into decimal indices for the mapping table
+indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
+
+% Map to symbols and normalize
+symbols = mapping(indices);
+symbols = symbols/(sqrt(2)*1.5);
+
+
 % Insert pilots
 % Allocate the array suggested by MATLAB
 num_pilot = ceil(sign_len/period_pilot);
@@ -51,30 +74,25 @@ for i = 1:(period_pilot+pilot_size):length(appended)
     end_index_bits = min(ind + period_pilot - 1, sign_len);
     end_index_app = min(pilot_size + i + period_pilot - 1, length(appended));
     appended(i : pilot_size+i-1) = pilot;
-    appended(pilot_size+i : end_index_app) = bits(ind : end_index_bits);
+    appended(pilot_size+i : end_index_app) = symbols(ind : end_index_bits);
     ind = ind + period_pilot;
 end
-bits = appended;
+symbols = appended;
 % append timing recovery sequence
-bits = [time_sync; bits];
+symbols = [time_sync; symbols];
 
-
-% Map bits to -1 and +1
-xI = 2 * bits - 1; 
-xQ = zeros([LL,1]); 
 
 % Upsample to match pulse 
-xI_up = upsample(xI,ov_samp);
-xQ_up = upsample(xQ,ov_samp);
+x_up = upsample(symbols,ov_samp);
 
-xI_con = conv(xI_up, pulse,'same'); % Shape I component
-xQ_con = conv(xQ_up, pulse,'same'); % Shape Q component
+x_con = conv(x_up, pulse,'same'); % Shape I component
+
 
 % Combine I and Q to create complex baseband signal
-xt = xI_con + 1j * xQ_con;
-
+xt = x_con;
 % Scale xt to ensure |xI(t)| < 1 and |xQ(t)| < 1
-max_x = max(abs([real(xt); imag(xt)]));
+
+max_x = max(sqrt(times(real(xt),real(xt)) + times(imag(xt),imag(xt))));
 xt = xt / max_x;
 
 
