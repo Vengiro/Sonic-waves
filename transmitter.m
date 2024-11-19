@@ -11,7 +11,7 @@ pilot = transpose(round(rand(1, pilot_size)));
 period_pilot = 100;
 
 % Parameters
-sign_len = 1440;
+sign_len = 8208/4; % 16QAM 4 bits per symbol
 t_constr = 400e-6; 
 % LL = 1440 + sync_size; % Total number of bits 
 LL = sign_len + sync_size + pilot_size*ceil(sign_len/period_pilot); % Total number of bits 
