@@ -152,26 +152,52 @@ legend('Received Symbols', 'Ideal Symbol Locations');
 hold off;
 
 % Detection
-% xk_hat = sign(zk);
-xk_hat = sign(appended);
+
+appended = appended * 3 * sqrt(2); 
+
+% Define decision boundaries
+real_part = real(appended);
+imag_part = imag(appended);
+
+% Map real parts to Gray-coded values
+real_idx = zeros(size(real_part));
+real_idx(real_part <= -2) = 0;
+real_idx(real_part <= 0 & real_part > -2) = 1;
+real_idx(real_part <= 2 & real_part > 0) = 3;
+real_idx(real_part > 2) = 2;
+
+% Map imaginary parts to Gray-coded values
+imag_idx = zeros(size(imag_part));
+imag_idx(imag_part <= -2) = 0;
+imag_idx(imag_part <= 0 & imag_part > -2) = 4;
+imag_idx(imag_part <= 2 & imag_part > 0) = 12;
+imag_idx(imag_part > 2) = 8;
+
+% Combine real and imaginary indices to form symbols
+symbol_idx = real_idx + imag_idx; 
+
+% Convert symbol indices to binary
+detected = de2bi(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
+detected = reshape(detected, size(detected,1) * size(detected,2), 1);
+xk_hat = sign(detected);
 bits_hat = (xk_hat>=0);
 % bits_hat = [time_sync; bits_hat];
 
 % Compute Bit Error Rate (BER)
-BER = mean(bits_hat ~= bits_original);
+BER = mean(bits_hat ~= bits);
 disp(['BER is ', num2str(BER)])
 zk = (zk>=0);
-BER = mean(zk(1:100) ~= bits(1:100));
+BER = mean(zk(1:100) ~= symbols(1:100));
 disp(['BER for timing sync is ', num2str(BER)])
 
 % Find error locations
-error_locations = (bits_hat ~= bits_original);
+error_locations = (bits_hat ~= bits);
 
 figure;
 hold on;
 
 % Plot transmitted bits in blue
-stem(bits_original, 'b', 'DisplayName', 'Transmitted Bits');
+stem(bits, 'b', 'DisplayName', 'Transmitted Bits');
 % Plot received bits in red with some vertical offset for clarity
 stem(bits_hat + 0.1, 'r', 'DisplayName', 'Received Bits');
 
@@ -188,8 +214,8 @@ hold off;
 
 
 % Store Image
-img_height = 78;
-img_width = 55;
+img_height = size(cdata,1);
+img_width = size(cdata,2);
 
 % Convert bits to pixel values (0 for black, 255 for white)
 % img_pixels = uint8(bits_hat(sync_size+1:end) * 255);

@@ -13,7 +13,7 @@ pilot = 2*pilot - 1;
 period_pilot = 100;
 
 % Parameters
-sign_len = 8208/4; % 16QAM 4 bits per symbol
+sign_len = 1440/4; % 16QAM 4 bits per symbol
 t_constr = 400e-6; 
 % LL = 1440 + sync_size; % Total number of bits 
 LL = sign_len + sync_size + pilot_size*ceil(sign_len/period_pilot); % Total number of bits 
@@ -42,19 +42,23 @@ xlabel('Hz');
 
 % image's bits
 bits = reshape(cdata, size(cdata,1) * size(cdata,2), 1);
-bits_original = reshape(cdata, size(cdata,1) * size(cdata,2), 1);
+
 
 % Transform 4 bits to 1 symbol
 % Group bits into chunks of 4
 bits_reshaped = reshape(bits, 4, []).'; % Each row is 4 bits
 
 % Gray-coded mapping for 16QAM (real, imaginary)
+%  0000  0001  0011 0010  0 1 3 2
+%  0100  0101  0111 0110  4 5 7 6
+%  1100  1101  1111 1110  12 13 15 14
+%  1000  1001  1011 1010  8 9 11 10
 % The rows correspond to the binary representation of the symbols
 mapping = [
-    -1.5 - 1.5j; -0.5 - 1.5j;  1.5 - 1.5j;  0.5 - 1.5j;
-    -1.5 - 0.5j; -0.5 - 0.5j;  1.5 - 0.5j;  0.5 - 0.5j;
-    -1.5 + 1.5j; -0.5 + 1.5j;  1.5 + 1.5j;  0.5 + 1.5j;
-    -1.5 + 0.5j; -0.5 + 0.5j;  1.5 + 0.5j;  0.5 + 0.5j
+    -3 - 3j; -1 - 3j;  3 - 3j;  1 - 3j;
+    -3 - 1j; -1 - 1j;  3 - 1j;  1 - 1j;
+    -3 + 3j; -1 + 3j;  3 + 3j;  1 + 3j;
+    -3 + 1j; -1 + 1j;  3 + 1j;  1 + 1j
 ];
 
 % Convert binary groups into decimal indices for the mapping table
@@ -62,7 +66,7 @@ indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
 
 % Map to symbols and normalize
 symbols = mapping(indices);
-symbols = symbols/(sqrt(2)*1.5);
+symbols = symbols/(sqrt(2)*3);
 
 
 % Insert pilots
