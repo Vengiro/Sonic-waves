@@ -13,7 +13,7 @@ pilot = 2*pilot - 1;
 period_pilot = 100;
 
 % Parameters
-sign_len = 1440; % 16QAM 4 bits per symbol
+sign_len = 8208; % 16QAM 4 bits per symbol
 if QAM == 1
     sign_len = sign_len/4;
 end
