@@ -1,5 +1,5 @@
 % Baseband modulation
-
+QAM = 1;
 % Timing sync
 sync_size = 200;
 r = rand(1, sync_size);
@@ -13,7 +13,10 @@ pilot = 2*pilot - 1;
 period_pilot = 100;
 
 % Parameters
-sign_len = 1440/4; % 16QAM 4 bits per symbol
+sign_len = 1440; % 16QAM 4 bits per symbol
+if QAM == 1
+    sign_len = sign_len/4;
+end
 t_constr = 400e-6; 
 % LL = 1440 + sync_size; % Total number of bits 
 LL = sign_len + sync_size + pilot_size*ceil(sign_len/period_pilot); % Total number of bits 
@@ -68,7 +71,7 @@ indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
 symbols = mapping(indices);
 symbols = symbols/(sqrt(2)*3);
 
-
+symbolsBP = 2 * bits -1;
 % Insert pilots
 % Allocate the array suggested by MATLAB
 num_pilot = ceil(sign_len/period_pilot);
@@ -78,16 +81,31 @@ for i = 1:(period_pilot+pilot_size):length(appended)
     end_index_bits = min(ind + period_pilot - 1, sign_len);
     end_index_app = min(pilot_size + i + period_pilot - 1, length(appended));
     appended(i : pilot_size+i-1) = pilot;
-    appended(pilot_size+i : end_index_app) = symbols(ind : end_index_bits);
+    if QAM == 1
+        appended(pilot_size+i : end_index_app) = symbols(ind : end_index_bits);
+    end
+    if QAM == 0
+        appended(pilot_size+i : end_index_app) = symbolsBP(ind : end_index_bits);
+    end
     ind = ind + period_pilot;
 end
+
 symbols = appended;
 % append timing recovery sequence
 symbols = [time_sync; symbols];
 
+symbolsBP = appended;
+symbolsBP = [time_sync; symbolsBP];
+
+
 
 % Upsample to match pulse 
-x_up = upsample(symbols,ov_samp);
+
+x_up = upsample(symbols, ov_samp);
+
+if QAM == 0
+    x_up = upsample(symbolsBP, ov_samp);
+end
 
 x_con = conv(x_up, pulse,'same'); % Shape I component
 
@@ -96,6 +114,7 @@ x_con = conv(x_up, pulse,'same'); % Shape I component
 xt = x_con;
 % Scale xt to ensure |xI(t)| < 1 and |xQ(t)| < 1
 
+max_xtest = max(abs([real(xt); imag(xt)]));
 max_x = max(sqrt(times(real(xt),real(xt)) + times(imag(xt),imag(xt))));
 xt = xt / max_x;
 

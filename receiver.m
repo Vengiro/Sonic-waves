@@ -22,7 +22,7 @@ for T_i = T_range
     pulse_trec = transpose(pulse_trec)/norm(pulse_trec)/sqrt(1/ov_samp_trec);
 
     % Rebuild y_ideal and z_ideal for the current T_i
-    y_ideal = conv(upsample(2*time_sync-1, ov_samp_trec), pulse_trec, 'same');
+    y_ideal = conv(upsample(time_sync, ov_samp_trec), pulse_trec, 'same');
     max_y = max(abs(y_ideal));
     y_ideal = y_ideal/max_y;
 
@@ -108,6 +108,7 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
     % receiver knows original pilot sequence = pilot
    
     % using transpose in place of hermitian
+    
     h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot);
 
     % detector
@@ -152,42 +153,49 @@ legend('Received Symbols', 'Ideal Symbol Locations');
 hold off;
 
 % Detection
+if QAM == 1
+    appended = appended * 3 * sqrt(2); 
+    
+    % Define decision boundaries
+    real_part = real(appended);
+    imag_part = imag(appended);
+    
+    % Map real parts to Gray-coded values
+    real_idx = zeros(size(real_part));
+    real_idx(real_part <= -2) = 0;
+    real_idx(real_part <= 0 & real_part > -2) = 1;
+    real_idx(real_part <= 2 & real_part > 0) = 3;
+    real_idx(real_part > 2) = 2;
+    
+    % Map imaginary parts to Gray-coded values
+    imag_idx = zeros(size(imag_part));
+    imag_idx(imag_part <= -2) = 0;
+    imag_idx(imag_part <= 0 & imag_part > -2) = 4;
+    imag_idx(imag_part <= 2 & imag_part > 0) = 12;
+    imag_idx(imag_part > 2) = 8;
+    
+    % Combine real and imaginary indices to form symbols
+    symbol_idx = real_idx + imag_idx; 
+    
+    % Convert symbol indices to binary
+    detected = de2bi(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
+    bits_hat = reshape(transpose(detected), size(detected,1) * size(detected,2), 1);
+end
 
-appended = appended * 3 * sqrt(2); 
+if QAM == 0
+    xk_hat = sign(appended);
+    bits_hat = (xk_hat>=0);
+end
 
-% Define decision boundaries
-real_part = real(appended);
-imag_part = imag(appended);
-
-% Map real parts to Gray-coded values
-real_idx = zeros(size(real_part));
-real_idx(real_part <= -2) = 0;
-real_idx(real_part <= 0 & real_part > -2) = 1;
-real_idx(real_part <= 2 & real_part > 0) = 3;
-real_idx(real_part > 2) = 2;
-
-% Map imaginary parts to Gray-coded values
-imag_idx = zeros(size(imag_part));
-imag_idx(imag_part <= -2) = 0;
-imag_idx(imag_part <= 0 & imag_part > -2) = 4;
-imag_idx(imag_part <= 2 & imag_part > 0) = 12;
-imag_idx(imag_part > 2) = 8;
-
-% Combine real and imaginary indices to form symbols
-symbol_idx = real_idx + imag_idx; 
-
-% Convert symbol indices to binary
-detected = de2bi(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
-detected = reshape(detected, size(detected,1) * size(detected,2), 1);
-xk_hat = sign(detected);
-bits_hat = (xk_hat>=0);
 % bits_hat = [time_sync; bits_hat];
 
 % Compute Bit Error Rate (BER)
+
 BER = mean(bits_hat ~= bits);
 disp(['BER is ', num2str(BER)])
 zk = (zk>=0);
-BER = mean(zk(1:100) ~= symbols(1:100));
+zk = 2*zk-1;
+BER = mean(zk(1:200) ~= time_sync);
 disp(['BER for timing sync is ', num2str(BER)])
 
 % Find error locations
@@ -202,7 +210,7 @@ stem(bits, 'b', 'DisplayName', 'Transmitted Bits');
 stem(bits_hat + 0.1, 'r', 'DisplayName', 'Received Bits');
 
 % Highlight bit errors in black
-stem(find(error_locations), bits(error_locations), 'k', 'LineWidth', 1.5, 'DisplayName', 'Errors');
+stem(find(error_locations), bits_hat(error_locations), 'k', 'LineWidth', 1.5, 'DisplayName', 'Errors');
 
 % Add labels and legend
 xlabel('Bit Index');
