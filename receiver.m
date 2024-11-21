@@ -27,18 +27,17 @@ for T_i = T_range
     y_ideal = y_ideal/max_y;
 
 
-    % Truncate z_received to match the size of z_ideal for correlation
-    for tau = 1:(ov_samp*5+1000)
-        y_received = yt(tau:size(y_ideal, 1)+tau-1);
-        max_val = dot(y_ideal, y_received);
+    % Compute cross-correlation between y_ideal and z_received
+    [corr_vals, lags] = xcorr(yt, y_ideal);
 
-         % Update if this T_i gives a higher correlation
-        if max_val > max_corr_val
-            max_corr_val = max_val;
-            best_T = T_i;
-            best_tau = tau-1;
-        end
-        
+    % Find the maximum correlation and its corresponding lag
+    [current_max_val, max_idx] = max(corr_vals);
+    
+    % Update best values if a higher correlation is found
+    if current_max_val > max_corr_val
+        max_corr_val = current_max_val;
+        best_T = T_i;
+        best_tau = lags(max_idx);  % tau is the lag corresponding to max correlation
     end
    
 end
