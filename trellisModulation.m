@@ -1,6 +1,14 @@
 % Baseband modulation
-% 1 if we use 16-QAM 0 for BPSK
-QAM = 0;
+
+% image's bits
+bits = reshape(cdata, 1, []); 
+
+
+% Generator polynomials (in binary form)
+G1 = [1 1 0 1];  % Polynomial h0 = 13
+G2 = [0 1 0 0];  % Polynomial h1 = 4
+
+    
 % Timing sync
 sync_size = 200;
 r = rand(1, sync_size);
@@ -14,10 +22,8 @@ pilot = 2*pilot - 1;
 period_pilot = 100;
 
 % Parameters
-sign_len = 8208; % 16QAM 4 bits per symbol
-if QAM == 1
-    sign_len = sign_len/4;
-end
+sign_len = (numel(bits)+9+(3-mod(numel(bits), 3)))/3; 
+
 t_constr = 400e-6; 
 % LL = 1440 + sync_size; % Total number of bits 
 LL = sign_len + sync_size + pilot_size*ceil(sign_len/period_pilot); % Total number of bits 
@@ -43,41 +49,58 @@ figure;
 plot(fr, abs(F_pulse/len));
 xlabel('Hz');
 
+% Append zeros
+bits = [bits, zeros(1, 3*sign_len - numel(bits))];
 
-% image's bits
-bits = reshape(cdata, size(cdata,1) * size(cdata,2), 1);
+% Initialize shift registers
+state = [0, 0, 0, 0];
+encoded_data = zeros(sign_len, 1);
 
-if QAM == 0
-    symbols = 2 * bits -1;
+% Define Gray code mapping for uncoded bits
+gray_code = [0, 1, 3, 2]; % Gray coding for 2 bits
+
+% Constellation parameters
+M = 16; % 16-BPSK
+phase_shifts = (0:M-1) * (2 * pi / M); 
+% e^0, e^pi/8,..
+mapping = transpose(exp(1j * phase_shifts)); 
+
+% Process the bits
+for i = 1:3:length(bits)-2
+    % Shift the bits
+    state = [bits(i+2), state(1), state(2), state(3)];
+    
+    % Generate the output bits using the generator polynomials
+    output1 = mod(sum(state .* G1), 2);  % G1: first polynomial
+    output2 = mod(sum(state .* G2), 2);  % G2: second polynomial
+    
+    % Combine uncoded and encoded bits to create symbol index
+    uncoded_bits = bits(i:i+1); 
+    uncoded_index = bi2de(uncoded_bits, 'left-msb'); 
+    % Apply Gray coding
+    gray_index = gray_code(uncoded_index + 1); 
+    
+    encoded_bits = [output1, output2];
+    encoded_index = bi2de(encoded_bits, 'left-msb'); 
+    
+    % Calculate the final symbol index
+    symbol_index = gray_index * 4 + encoded_index;
+    
+    % Map to constellation
+   
+    encoded_data((i-1)/3 + 1) = mapping(symbol_index + 1);
 end
+symbols = encoded_data;
 
-
-if QAM == 1
-    % Transform 4 bits to 1 symbol
-    % Group bits into chunks of 4
-    bits_reshaped = reshape(bits, 4, []).'; % Each row is 4 bits
-    
-    % Gray-coded mapping for 16QAM (real, imaginary)
-    %  0000  0001  0011 0010  0 1 3 2
-    %  0100  0101  0111 0110  4 5 7 6
-    %  1100  1101  1111 1110  12 13 15 14
-    %  1000  1001  1011 1010  8 9 11 10
-    % The rows correspond to the binary representation of the symbols
-    mapping = [
-        -3 - 3j; -1 - 3j;  3 - 3j;  1 - 3j;
-        -3 - 1j; -1 - 1j;  3 - 1j;  1 - 1j;
-        -3 + 3j; -1 + 3j;  3 + 3j;  1 + 3j;
-        -3 + 1j; -1 + 1j;  3 + 1j;  1 + 1j
-    ];
-    
-    % Convert binary groups into decimal indices for the mapping table
-    indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
-    
-    % Map to symbols and normalize
-    symbols = mapping(indices);
-    symbols = symbols/(sqrt(2)*3);
-end
-
+% Display constellation points
+figure;
+plot(real(mapping), imag(mapping), 'o');
+text(real(mapping), imag(mapping), arrayfun(@num2str, 0:M-1, 'UniformOutput', false));
+grid on;
+axis equal;
+title('16-BPSK Constellation with Gray Mapping');
+xlabel('In-phase');
+ylabel('Quadrature');
 
 % Insert pilots
 % Allocate the array suggested by MATLAB
