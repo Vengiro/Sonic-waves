@@ -1,4 +1,6 @@
 % Baseband modulation
+imageStruct = importdata("images\images\shannon20520.bmp");
+cdata = imageStruct.cdata;
 % 1 if we use 16-QAM 0 for BPSK
 QAM = 0;
 % Timing sync
@@ -14,7 +16,7 @@ pilot = 2*pilot - 1;
 period_pilot = 100;
 
 % Parameters
-sign_len = 8208; % 16QAM 4 bits per symbol
+sign_len = size(cdata,1) * size(cdata,2); %8208; % 16QAM 4 bits per symbol
 if QAM == 1
     sign_len = sign_len/4;
 end
@@ -71,7 +73,8 @@ if QAM == 1
     ];
     
     % Convert binary groups into decimal indices for the mapping table
-    indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
+    %indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
+    indices = double(bits_reshaped) + 1;
     
     % Map to symbols and normalize
     symbols = mapping(indices);
