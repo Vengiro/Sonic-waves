@@ -112,7 +112,27 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     % detector
     % vk = zk/h0
-    vk = message_bits / h0_hat;
+    %vk = message_bits / h0_hat;
+
+    % MMSE-LE
+    % LMS algorithm
+
+    % Initially, wm at trial 0 = 0
+    wm = 0;
+    mu = 0.01; % placeholder value
+    for j = 1:length(pilot_received)
+        % vk = wk * zk
+        vk = conv(wm, pilot_bits);
+        ek = vk - xk;
+        wm = wm - mu*ek*pilot_bits;
+    end
+    
+    % use pilot to find error. ek = vk - xk
+    % pilot_error = pilot_received - pilot;
+
+    % equalizer concept: vk = wm * zk
+    % wm found through LMS trial and error
+    vk = conv(wk, message_bits);
 
     appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
     non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
@@ -177,7 +197,7 @@ if QAM == 1
     symbol_idx = real_idx + imag_idx; 
     
     % Convert symbol indices to binary
-    detected = de2bi(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
+    detected = dec2bin(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
     bits_hat = reshape(transpose(detected), size(detected,1) * size(detected,2), 1);
 end
 
