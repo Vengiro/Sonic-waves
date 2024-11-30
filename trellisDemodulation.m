@@ -154,25 +154,140 @@ hold off;
 % Detection
 
 % Demodulate the received symbols (soft decision)
-demodulated_symbols = zeros(size(appended));
-for i = 1:length(appended)
-    [~, idx] = min(abs(appended(i) - phase_shifts)); % Find nearest point in the constellation
-    demodulated_symbols(i) = phase_shifts(idx);
+trellis_matrix  = [
+    0, Inf, Inf, Inf, 2, Inf, Inf, Inf;
+    2, Inf, Inf, Inf, 0, Inf, Inf, Inf;
+    Inf, 0, Inf, Inf, Inf, 2, Inf, Inf;
+    Inf, 2, Inf, Inf, Inf, 0, Inf, Inf;
+    Inf, Inf, 3, Inf, Inf, Inf, 1, Inf;
+    Inf, Inf, 1, Inf, Inf, Inf, 3, Inf;
+    Inf, Inf, Inf, 3, Inf, Inf, Inf, 1;
+    Inf, Inf, Inf, 1, Inf, Inf, Inf, 3;
+];
+decoding_map = [
+    0, Inf, Inf, Inf, 1, Inf, Inf, Inf;
+    0, Inf, Inf, Inf, 1, Inf, Inf, Inf;
+    Inf, 0, Inf, Inf, Inf, 1, Inf, Inf;
+    Inf, 0, Inf, Inf, Inf, 1, Inf, Inf;
+    Inf, Inf, 0, Inf, Inf, Inf, 1, Inf;
+    Inf, Inf, 0, Inf, Inf, Inf, 1, Inf;
+    Inf, Inf, Inf, 0, Inf, Inf, Inf, 1;
+    Inf, Inf, Inf, 0, Inf, Inf, Inf, 1;
+];
+
+%% Viterbi algo
+% Number of states in the trellis
+num_states = 8;
+len_res = length(appended);
+num_uncoded_bits = 2;
+
+% Initialize path metrics and backtracking tables
+path_metric = inf(num_states, len_res+1); % Path metric initialized to infinity
+path_metric(1, 1) = 0; % Initial state (state 0) with path metric 0
+
+backtracking = zeros(num_states, len_res+1); % Backtracking table
+uncoded_bits_table = zeros(num_states, len_res); % To track uncoded bits
+
+
+
+% Iterate through the received symbols (time steps)
+for t = 1:len_res
+    for state = 1:num_states
+        best_metric = inf;
+        best_prev_state = -1;
+        best_uncoded_bits = -1;
+        
+        % Check transitions from all previous states
+        for prev_state = 1:num_states
+            for uncoded_bits = 0:(2^num_uncoded_bits - 1)
+                % Convert uncoded bits to binary vector
+                uncoded_grayInd = gray_code(uncoded_bits+1);
+                
+                % Calculate the cost of transitioning from prev_state to current state
+           
+                if trellis_matrix(prev_state, state) == Inf
+                    transition_cost = Inf;
+                else
+                    transition_symbol = mapping(uncoded_grayInd * 4 + trellis_matrix(prev_state, state) + 1);
+                    transition_cost = abs(transition_symbol - appended(t))^2;
+                end
+
+                total_metric = path_metric(prev_state, t) + transition_cost;
+                
+                if total_metric < best_metric
+                    best_metric = total_metric;
+                    best_prev_state = prev_state;
+                    best_uncoded_bits = uncoded_bits;
+                end
+            end
+        end
+        
+        % Update path metric and backtracking table
+        path_metric(state, t+1) = best_metric;
+        backtracking(state, t+1) = best_prev_state;
+        uncoded_bits_table(state, t) = best_uncoded_bits;
+    end
 end
 
-% Map demodulated symbols to log-likelihood ratios (LLRs)
-llr = 2 * real(demodulated_symbols); % Using real part for simplicity; this could be adjusted
+% Termination: Find the final state with the minimum path metric
+[~, final_state] = min(path_metric(:, end));
 
-% Generate the trellis for a 3/4 encoder with constraint length 4
+% Backtrack to reconstruct the most likely sequence of bits
+decoded_4bits = zeros(len_res, 1);
+decoded_bits = zeros(len_res*3, 1);
+for t = len_res+1:-1:2
+    
+    
+    % Append coded bit (decoding based on trellis)
+    prev_state = backtracking(final_state, t);
+    
+    msb_bits = de2bi(uncoded_bits_table(final_state, t-1), 2, 'left-msb');
+    decoded_bits(3*(t-1)-2) = msb_bits(1);
+    decoded_bits(3*(t-1)-1) = msb_bits(2);
+    decoded_bits(3*(t-1)) = decoding_map(prev_state, final_state);
+    
+    decoded_4bits(t-1) = uncoded_bits_table(final_state, t-1) * 4 + trellis_matrix(prev_state, final_state);
+    final_state = prev_state;
+end
+% End of Viterbi
 
-trellis = poly2trellis(4,[13 4]);
 
-% Perform soft-input Viterbi decoding with log-likelihood ratios (LLRs)
-decoded_bits = vitdec(llr, trellis, 50, 'trunc', 'unquant');
+res_bits = decoded_bits(1:original_len); % 3 bits decoded data
+res_4bits = decoded_4bits; % 4 bits nearest data in trellis code
+original = transpose(bits);
+original = original(1:original_len); % original bits
+disp(['BER is ', num2str(mean(original ~= res_bits))]);
+
+% Parameters
+num_bits_per_packet = 4; % Number of bits in each packet
+
+% Convert integers to binary
+encoded_bits = de2bi(encoded_test, num_bits_per_packet, 'left-msb');
+demodulated_bits = de2bi(res_4bits, num_bits_per_packet, 'left-msb');
+
+% Compute BER for all bits
+bit_errors_all = sum(encoded_bits(:) ~= demodulated_bits(:));
+total_bits_all = numel(encoded_bits);
+ber_all = bit_errors_all / total_bits_all;
+disp(['Overall BER is ', num2str(ber_all)]);
+
+% Compute BER for the first 2 bits of each packet
+first_two_encoded = encoded_bits(:, 1:2);
+first_two_demodulated = demodulated_bits(:, 1:2);
+bit_errors_first_two = sum(first_two_encoded(:) ~= first_two_demodulated(:));
+total_bits_first_two = numel(first_two_encoded);
+ber_first_two = bit_errors_first_two / total_bits_first_two;
+disp(['BER for the first 2 bits is ', num2str(ber_first_two)]);
+
+% Compute BER for the last 2 bits of each packet
+last_two_encoded = encoded_bits(:, 3:4);
+last_two_demodulated = demodulated_bits(:, 3:4);
+bit_errors_last_two = sum(last_two_encoded(:) ~= last_two_demodulated(:));
+total_bits_last_two = numel(last_two_encoded);
+ber_last_two = bit_errors_last_two / total_bits_last_two;
+disp(['BER for the last 2 bits is ', num2str(ber_last_two)]);
 
 % Calculate the Bit Error Rate (BER)
-%BER = mean(transpose(decoded_bits) ~= bits); 
-disp(['BER is ', num2str(BER)]);
 
 zk = (zk>=0);
 zk = 2*zk-1;
@@ -180,18 +295,18 @@ BER = mean(zk(1:200) ~= time_sync);
 disp(['BER for timing sync is ', num2str(BER)])
 
 % Find error locations
-error_locations = (decoded_bits ~= bits);
+error_locations = (res_bits ~= original);
 
 figure;
 hold on;
 
 % Plot transmitted bits in blue
-stem(bits, 'b', 'DisplayName', 'Transmitted Bits');
+stem(original, 'b', 'DisplayName', 'Transmitted Bits');
 % Plot received bits in red with some vertical offset for clarity
-stem(bits_hat + 0.1, 'r', 'DisplayName', 'Received Bits');
+stem(res_bits + 0.1, 'r', 'DisplayName', 'Received Bits');
 
 % Highlight bit errors in black
-stem(find(error_locations), bits_hat(error_locations), 'k', 'LineWidth', 1.5, 'DisplayName', 'Errors');
+stem(find(error_locations), res_bits(error_locations), 'k', 'LineWidth', 1.5, 'DisplayName', 'Errors');
 
 % Add labels and legend
 xlabel('Bit Index');
@@ -208,7 +323,7 @@ img_width = size(cdata,2);
 
 % Convert bits to pixel values (0 for black, 255 for white)
 % img_pixels = uint8(bits_hat(sync_size+1:end) * 255);
-img_pixels = uint8(bits_hat * 255);
+img_pixels = uint8(res_bits * 255);
 
 
 % Reshape the array to match the image dimensions
@@ -218,6 +333,15 @@ img_matrix = reshape(img_pixels, img_height, img_width);
 imwrite(img_matrix, 'demodulated_image.bmp');
 disp('Image saved as demodulated_image.bmp');
 
+figure; 
+subplot(1, 2, 1); 
+imshow(cdata, []); 
+title('Original Image'); 
+
+% Display the demodulated image
+subplot(1, 2, 2); 
+imshow(img_matrix, []); 
+title('Demodulated Image'); 
 
 % % required plots:
 % % pulse time and frequency included in transmitter
@@ -326,58 +450,5 @@ disp('Image saved as demodulated_image.bmp');
 % title('Equalizer Output Samples');
 
 
-function decoded_bits = viterbi_decode(received_symbols, trellis, constraint_length)
-    % Number of states in the trellis
-    num_states = 2^(constraint_length - 1);
-    
-    % Initialize path metrics and backtracking tables
-    path_metric = inf(num_states, length(received_symbols)); % Path metric initialized to infinity
-    path_metric(1, 1) = 0; % Initial state (state 0) with path metric 0
-    
-    backtracking = zeros(num_states, length(received_symbols)); % Backtracking table
-    
-    % Iterate through the received symbols (time steps)
-    for t = 2:length(received_symbols)
-        for state = 1:num_states
-            best_metric = inf;
-            best_prev_state = -1;
-            
-            % Check transitions from all previous states
-            for prev_state = 1:num_states
-                % Calculate the cost (Hamming distance) of transitioning from prev_state to current state
-                transition_cost = calculate_cost(prev_state, state, received_symbols(t), trellis);
-                total_metric = path_metric(prev_state, t-1) + transition_cost;
-                
-                if total_metric < best_metric
-                    best_metric = total_metric;
-                    best_prev_state = prev_state;
-                end
-            end
-            
-            % Update path metric and backtracking table
-            path_metric(state, t) = best_metric;
-            backtracking(state, t) = best_prev_state;
-        end
-    end
-    
-    % Termination: Find the final state with the minimum path metric
-    [~, final_state] = min(path_metric(:, end));
-    
-    % Backtrack to reconstruct the most likely sequence of bits
-    decoded_bits = zeros(1, length(received_symbols));
-    for t = length(received_symbols):-1:1
-        decoded_bits(t) = backtracking(final_state, t); % Track the decoded bits
-        final_state = backtracking(final_state, t);
-    end
-end
 
-function transition_cost = calculate_cost(prev_state, current_state, received_symbol, trellis)
-    % Calculate the Hamming distance between the received symbol and the expected output
-    % For simplicity, assuming hard decision decoding with binary symbols
-    
-    % Get the output symbols for the transition
-    expected_output = trellis.outputs(current_state, :); % Output for current state
-    
-    % Hamming distance between received symbol and expected output
-    transition_cost = sum(received_symbol ~= expected_output);
-end
+

@@ -22,6 +22,7 @@ pilot = 2*pilot - 1;
 period_pilot = 100;
 
 % Parameters
+original_len = numel(bits);
 sign_len = (numel(bits)+9+(3-mod(numel(bits), 3)))/3; 
 
 t_constr = 400e-6; 
@@ -65,6 +66,7 @@ phase_shifts = (0:M-1) * (2 * pi / M);
 % e^0, e^pi/8,..
 mapping = transpose(exp(1j * phase_shifts)); 
 
+encoded_test = zeros(sign_len, 1);
 % Process the bits
 for i = 1:3:length(bits)-2
     % Shift the bits
@@ -89,18 +91,10 @@ for i = 1:3:length(bits)-2
     % Map to constellation
    
     encoded_data((i-1)/3 + 1) = mapping(symbol_index + 1);
+    encoded_test((i-1)/3+1) = uncoded_index*4+encoded_index;
 end
 symbols = encoded_data;
 
-% Display constellation points
-figure;
-plot(real(mapping), imag(mapping), 'o');
-text(real(mapping), imag(mapping), arrayfun(@num2str, 0:M-1, 'UniformOutput', false));
-grid on;
-axis equal;
-title('16-BPSK Constellation with Gray Mapping');
-xlabel('In-phase');
-ylabel('Quadrature');
 
 % Insert pilots
 % Allocate the array suggested by MATLAB
@@ -147,3 +141,14 @@ xt = xt / max_x;
 
 transmitsignal = xt;
 save('transmitsignal.mat', 'transmitsignal');
+
+
+% % Display constellation points
+% figure;
+% plot(real(mapping), imag(mapping), 'o');
+% text(real(mapping), imag(mapping), arrayfun(@num2str, 0:M-1, 'UniformOutput', false));
+% grid on;
+% axis equal;
+% title('16-BPSK Constellation with Gray Mapping');
+% xlabel('In-phase');
+% ylabel('Quadrature');
