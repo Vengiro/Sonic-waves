@@ -10,7 +10,7 @@ G2 = [0 1 0 0];  % Polynomial h1 = 4
 
     
 % Timing sync
-sync_size = 200;
+sync_size = 300;
 r = rand(1, sync_size);
 time_sync = transpose(round(r));
 time_sync = 2*time_sync - 1;
@@ -50,6 +50,7 @@ figure;
 plot(fr, abs(F_pulse/len));
 xlabel('Hz');
 
+%% Trellis code modulation
 % Append zeros
 bits = [bits, zeros(1, 3*sign_len - numel(bits))];
 
@@ -95,6 +96,7 @@ for i = 1:3:length(bits)-2
 end
 symbols = encoded_data;
 
+% End of encoding
 
 % Insert pilots
 % Allocate the array suggested by MATLAB

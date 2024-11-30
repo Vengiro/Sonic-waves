@@ -154,6 +154,7 @@ hold off;
 % Detection
 
 % Demodulate the received symbols (soft decision)
+% Trellis matrix as well as Trellis decoding matrix
 trellis_matrix  = [
     0, Inf, Inf, Inf, 2, Inf, Inf, Inf;
     2, Inf, Inf, Inf, 0, Inf, Inf, Inf;
@@ -256,7 +257,7 @@ res_bits = decoded_bits(1:original_len); % 3 bits decoded data
 res_4bits = decoded_4bits; % 4 bits nearest data in trellis code
 original = transpose(bits);
 original = original(1:original_len); % original bits
-disp(['BER is ', num2str(mean(original ~= res_bits))]);
+disp(['BER is for the decoded signal ', num2str(mean(original ~= res_bits))]);
 
 % Parameters
 num_bits_per_packet = 4; % Number of bits in each packet
@@ -269,7 +270,7 @@ demodulated_bits = de2bi(res_4bits, num_bits_per_packet, 'left-msb');
 bit_errors_all = sum(encoded_bits(:) ~= demodulated_bits(:));
 total_bits_all = numel(encoded_bits);
 ber_all = bit_errors_all / total_bits_all;
-disp(['Overall BER is ', num2str(ber_all)]);
+disp(['Overall BER on 4 bits encoded signal is ', num2str(ber_all)]);
 
 % Compute BER for the first 2 bits of each packet
 first_two_encoded = encoded_bits(:, 1:2);
@@ -291,7 +292,7 @@ disp(['BER for the last 2 bits is ', num2str(ber_last_two)]);
 
 zk = (zk>=0);
 zk = 2*zk-1;
-BER = mean(zk(1:200) ~= time_sync);
+BER = mean(zk(1:sync_size) ~= time_sync);
 disp(['BER for timing sync is ', num2str(BER)])
 
 % Find error locations
