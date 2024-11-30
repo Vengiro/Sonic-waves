@@ -1,5 +1,5 @@
 % Demodulation
-
+load("receivedsignal.mat");
 yt = receivedsignal;
 
 
@@ -122,9 +122,10 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
     mu = 0.01; % placeholder value
     for j = 1:length(pilot_received)
         % vk = wk * zk
-        vk = conv(wm, pilot_bits);
-        ek = vk - xk;
-        wm = wm - mu*ek*pilot_bits;
+        vk = conv(wm, pilot_received);
+        ek = vk - pilot;
+        ek = transpose(ek); % in order for the next line to work
+        wm = wm - mu*ek*pilot_received;
     end
     
     % use pilot to find error. ek = vk - xk
@@ -132,7 +133,7 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     % equalizer concept: vk = wm * zk
     % wm found through LMS trial and error
-    vk = conv(wk, message_bits);
+    vk = conv(wm, message_bits);
 
     appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
     non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
