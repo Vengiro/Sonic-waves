@@ -1,7 +1,8 @@
 % Demodulation
 load("receivedsignal.mat");
 yt = receivedsignal;
-
+% 1 if we use the MMSE-LE equalizer
+MMSE_LE = 1;
 
 % Timing recovery 
 window = T/8;
@@ -103,37 +104,42 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     message_bits = zk(sync_size + i + pilot_size: message_end_index);
 
-    % use pilot sequence to find h0
-    % receiver knows original pilot sequence = pilot
-   
-    % using transpose in place of hermitian
-    
-    h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot);
-
-    % detector
-    % vk = zk/h0
-    %vk = message_bits / h0_hat;
-
     % MMSE-LE
     % LMS algorithm
+    if MMSE_LE
+        % Initially, wm at trial 0 = 0
+        wm = 0;
+        for mu = 5:-0.1:0.1
+            adjusted = 5; % can the L1_L2 value be arbitrary?
+            for j = 1:adjusted %length(pilot_received)
+                % vk = wk * zk
+                vk_pilot = conv(wm, pilot_received);
+                % use pilot to find error. ek = vk - xk
 
-    % Initially, wm at trial 0 = 0
-    wm = 0;
-    mu = 0.01; % placeholder value
-    for j = 1:length(pilot_received)
-        % vk = wk * zk
-        vk = conv(wm, pilot_received);
-        ek = vk - pilot;
-        ek = transpose(ek); % in order for the next line to work
-        wm = wm - mu*ek*pilot_received;
+                ek = vk_pilot - pilot;
+                ek = transpose(ek); % in order for the next line to work
+                wm = wm - mu*ek*pilot_received;
+            end
+        end
+ 
+        % equalizer concept: vk = wm * zk
+        % wm found through LMS trial and error
+        vk = conv(wm, message_bits);
+    else
+        % use pilot sequence to find h0
+        % receiver knows original pilot sequence = pilot
+       
+        % using transpose in place of hermitian
+        
+        h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot);
+    
+        % detector
+        % vk = zk/h0
+        vk = message_bits / h0_hat;
     end
     
-    % use pilot to find error. ek = vk - xk
-    % pilot_error = pilot_received - pilot;
 
-    % equalizer concept: vk = wm * zk
-    % wm found through LMS trial and error
-    vk = conv(wm, message_bits);
+    
 
     appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
     non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
@@ -198,7 +204,9 @@ if QAM == 1
     symbol_idx = real_idx + imag_idx; 
     
     % Convert symbol indices to binary
-    detected = dec2bin(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
+    % detected = dec2bin(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
+    detected = dec2bin(symbol_idx, 4); % 4 bits per symbol
+
     bits_hat = reshape(transpose(detected), size(detected,1) * size(detected,2), 1);
 end
 
