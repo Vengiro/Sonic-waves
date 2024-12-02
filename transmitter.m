@@ -58,7 +58,6 @@ if QAM == 1
     % Transform 4 bits to 1 symbol
     % Group bits into chunks of 4
     bits_reshaped = reshape(bits, 4, []).'; % Each row is 4 bits
-    bits_reshaped_copy = reshape(bits, 4, []).'; % Each row is 4 bits
     
     % Gray-coded mapping for 16QAM (real, imaginary)
     %  0000  0001  0011 0010  0 1 3 2
@@ -89,21 +88,10 @@ if QAM == 1
     for i = 1:size(bits_reshaped_num, 1)
         indices(i) = (bits_reshaped_num(i, 1) * 8 + bits_reshaped_num(i, 2) * 4 + bits_reshaped_num(i, 3) * 2 + bits_reshaped_num(i, 4) * 1) + 1;
     end
-    % indices_comparison = bi2de(bits_reshaped_copy, 'left-msb') + 1;
 
     % Map to symbols and normalize
     symbols = mapping(indices);
     symbols = symbols/(sqrt(2)*3);
-
-    % symbols_copy = mapping(indices);
-    % symbols_copy = symbols_copy/(sqrt(2)*3);
-    % 
-    % % TEST
-    % symbols_test = mapping(indices_comparison);
-    % symbols_test = symbols_test/(sqrt(2)*3);
-
-    
-
     
 end
 
