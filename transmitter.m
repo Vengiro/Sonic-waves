@@ -2,7 +2,7 @@
 imageStruct = importdata("images\images\shannon20520.bmp");
 cdata = imageStruct.cdata;
 % 1 if we use 16-QAM 0 for BPSK
-QAM = 0;
+QAM = 1;
 % Timing sync
 sync_size = 200;
 r = rand(1, sync_size);
@@ -58,6 +58,7 @@ if QAM == 1
     % Transform 4 bits to 1 symbol
     % Group bits into chunks of 4
     bits_reshaped = reshape(bits, 4, []).'; % Each row is 4 bits
+    bits_reshaped_copy = reshape(bits, 4, []).'; % Each row is 4 bits
     
     % Gray-coded mapping for 16QAM (real, imaginary)
     %  0000  0001  0011 0010  0 1 3 2
@@ -74,11 +75,36 @@ if QAM == 1
     
     % Convert binary groups into decimal indices for the mapping table
     %indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
-    indices = double(bits_reshaped) + 1;
-    
+    bits_reshaped_num = zeros(size(bits_reshaped, 1), size(bits_reshaped, 2));
+    for i = 1:size(bits_reshaped, 1)
+        for j = 1:size(bits_reshaped, 2)
+            if bits_reshaped(i, j)
+                bits_reshaped_num(i, j) = 1;
+            else
+                bits_reshaped_num(i, j) = 0;
+            end
+        end
+    end
+    indices = zeros(size(bits_reshaped_num, 1), 1);
+    for i = 1:size(bits_reshaped_num, 1)
+        indices(i) = (bits_reshaped_num(i, 1) * 8 + bits_reshaped_num(i, 2) * 4 + bits_reshaped_num(i, 3) * 2 + bits_reshaped_num(i, 4) * 1) + 1;
+    end
+    % indices_comparison = bi2de(bits_reshaped_copy, 'left-msb') + 1;
+
     % Map to symbols and normalize
     symbols = mapping(indices);
     symbols = symbols/(sqrt(2)*3);
+
+    % symbols_copy = mapping(indices);
+    % symbols_copy = symbols_copy/(sqrt(2)*3);
+    % 
+    % % TEST
+    % symbols_test = mapping(indices_comparison);
+    % symbols_test = symbols_test/(sqrt(2)*3);
+
+    
+
+    
 end
 
 
