@@ -107,24 +107,33 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
     % MMSE-LE
     % LMS algorithm
     if MMSE_LE
+        L1 = -2;
+        L2 = 3;
+        wm_length = L2 - L1 + 1; %10;
         % Initially, wm at trial 0 = 0
-        wm = 0;
-        for mu = 5:-0.1:0.1
-            adjusted = 5; % can the L1_L2 value be arbitrary?
-            for j = 1:adjusted %length(pilot_received)
+        wm = zeros(wm_length, 1);
+        for mu = 9:-0.1:0.1
+            %adjusted = 5; % can the L1_L2 value be arbitrary?
+            for j = 1-L1:wm_length + 1 %length(pilot_received)
+                pilot_received_segment = pilot_received(j+L1:j+L2);
                 % vk = wk * zk
-                vk_pilot = conv(wm, pilot_received);
+                vk_pilot = conv(wm, pilot_received_segment, "same");
                 % use pilot to find error. ek = vk - xk
-
-                ek = vk_pilot - pilot;
+                pilot_segment = pilot(j+L1:j+L2);
+                ek = vk_pilot - pilot_segment;
                 ek = transpose(ek); % in order for the next line to work
-                wm = wm - mu*ek*pilot_received;
+                wm = wm - mu*ek*pilot_received_segment;
             end
         end
  
         % equalizer concept: vk = wm * zk
         % wm found through LMS trial and error
-        vk = conv(wm, message_bits);
+        vk_same = conv(wm, message_bits, "same");
+        vk_full = conv(wm, message_bits, "full");
+        vk_valid = conv(wm, message_bits, "valid");
+        
+        vk_full = vk_full(1:length(message_bits));
+        vk = vk_full;
     else
         % use pilot sequence to find h0
         % receiver knows original pilot sequence = pilot
@@ -204,10 +213,157 @@ if QAM == 1
     symbol_idx = real_idx + imag_idx; 
     
     % Convert symbol indices to binary
-    % detected = dec2bin(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
-    detected = dec2bin(symbol_idx, 4); % 4 bits per symbol
+    detected_test = de2bi(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
+    %detected = dec2bin(symbol_idx, 4); % 4 bits per symbol
+    detected = zeros(size(symbol_idx, 1), 4);
+    for i = 1:size(symbol_idx, 1)
+        if symbol_idx(i) == 0
+            detected(i,1) = 0;
+            detected(i, 2) = 0;
+            detected(i, 3) = 0;
+            detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 1
+              % detected(i) = [0; 0; 0; 1];  
+              detected(i,1) = 0;
+              detected(i, 2) = 0;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 2
+              % detected(i) = [0; 0; 1; 0];
+              detected(i,1) = 0;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 3
+              % detected(i) = [0; 0; 1; 1]; 
+              detected(i,1) = 0;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 4
+              % detected(i) = [0; 1; 0; 0];  
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 5
+              % detected(i) = [0; 1; 0; 1];  
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 6
+              % detected(i) = [0; 1; 1; 0];  
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 7
+              % detected(i) = [0; 1; 1; 1]; 
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 8
+              % detected(i) = [1; 0; 0; 0]; 
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 0;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 9
+              % detected(i) = [1; 0; 0; 1];  
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 10
+              % detected(i) = [1; 0; 1; 0]; 
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 11
+              % detected(i) = [1; 0; 1; 1];  
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 12
+              % detected(i) = [1; 1; 0; 0];  
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 13
+              % detected(i) = [1; 1; 0; 1];  
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 14
+              % detected(i) = [1; 1; 1; 0];  
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 15
+              % detected(i) = [1; 1; 1; 1];  
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+        % if symbol_idx(i) >= 8
+        %     detected(i, 1) = 1;
+        % else
+        %     detected(i, 1) = 0;
+        % end
+        % 
+        % mod8 = mod(symbol_idx(i), 8);
+        % vector_two = [symbol_idx(i) == 4; symbol_idx(i) == 5; symbol_idx(i) == 6; symbol_idx(i) == 7; symbol_idx(i) == 12; symbol_idx(i) == 13; symbol_idx(i) == 14; symbol_idx(i) == 15; ];
+        % 
+        % % detected(i, 2) = all(vector_two);
+        % if all(vector_two) == 1
+        %     detected(i, 2) = 1;
+        % else
+        %     detected(i, 2) = 0;
+        % end
+        % 
+        % vector_three = [mod8 == 2; mod8 == 3; mod8 == 6; mod8 == 7];
+        % if any(vector_three) == '1'
+        %     detected(i, 3) = 1;
+        % else
+        %     detected(i, 3) = 0;
+        % end
+        % % detected(i, 3) = any(vector_three);
+        % 
+        % mod2 = mod(symbol_idx(i), 2);
+        % if mod2 == 1
+        %     detected(i, 4) = 1;
+        % else
+        %     detected(i, 4) = 0;
+        % end
+        % % detected(i, 4) = mod2;
+        
+    end
 
     bits_hat = reshape(transpose(detected), size(detected,1) * size(detected,2), 1);
+    bits_hat_test = reshape(transpose(detected_test), size(detected_test,1) * size(detected_test,2), 1);
 end
 
 if QAM == 0
