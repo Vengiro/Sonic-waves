@@ -2,7 +2,7 @@
 load("receivedsignal.mat");
 yt = receivedsignal;
 % 1 if we use the MMSE-LE equalizer
-MMSE_LE = 0;
+MMSE_LE = 1;
 
 % Timing recovery 
 window = T/8;
@@ -104,51 +104,43 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     message_bits = zk(sync_size + i + pilot_size: message_end_index);
 
-    % MMSE-LE
-    % LMS algorithm
-    if MMSE_LE
-        L1 = -2;
-        L2 = 3;
-        wm_length = L2 - L1 + 1; %10;
+    % MMSE-LE: LMS algorithm
+    % calculate vk for both one-tap & MMSE-LE, and compare
+        wm_length = size(pilot_received, 1);
         % Initially, wm at trial 0 = 0
         wm = zeros(wm_length, 1);
-        for mu = 9:-0.1:0.1
-            %adjusted = 5; % can the L1_L2 value be arbitrary?
-            for j = 1-L1:wm_length + 1 %length(pilot_received)
-                pilot_received_segment = pilot_received(j+L1:j+L2);
-                % vk = wk * zk
-                vk_pilot = conv(wm, pilot_received_segment, "same");
-                % use pilot to find error. ek = vk - xk
-                pilot_segment = pilot(j+L1:j+L2);
-                ek = vk_pilot - pilot_segment;
-                ek = transpose(ek); % in order for the next line to work
-                wm = wm - mu*ek*pilot_received_segment;
-            end
+        mu = 0.7;
+        for k = 1:wm_length
+            %vk = wm * zk
+            vk_pilot = conv(wm, pilot_received, "same");
+            % ek = vk - xk
+            ek = vk_pilot - pilot;
+            ek = transpose(ek);
+            disp(norm(ek));
+            % wm = wm - mu * ek * complex conj(zk)
+            wm = wm - mu*ek*conj(pilot_received);
         end
  
-        % equalizer concept: vk = wm * zk
         % wm found through LMS trial and error
-        vk_same = conv(wm, message_bits, "same");
-        vk_full = conv(wm, message_bits, "full");
-        vk_valid = conv(wm, message_bits, "valid");
-        
-        vk_full = vk_full(1:length(message_bits));
-        vk = vk_full;
-    else
+        vk_same = conv(message_bits, wm, "same");
+
+    %else
         % use pilot sequence to find h0
         % receiver knows original pilot sequence = pilot
-       
         % using transpose in place of hermitian
-        
         h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot);
+     
+    %end
     
+    disp("vk");
+    if MMSE_LE
+        vk = vk_same
+    else
         % detector
         % vk = zk/h0
-        vk = message_bits / h0_hat;
+        %vk = message_bits / h0_hat;
+        vk = message_bits / h0_hat
     end
-    
-
-    
 
     appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
     non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
