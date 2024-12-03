@@ -1,10 +1,10 @@
 % Baseband modulation
-imageStruct = importdata("images\images\shannon20520.bmp");
+imageStruct = importdata("images\shannon20520.bmp");
 cdata = imageStruct.cdata;
 % 1 if we use 16-QAM 0 for BPSK
 QAM = 1;
 % Timing sync
-sync_size = 200;
+sync_size = 300;
 r = rand(1, sync_size);
 time_sync = transpose(round(r));
 time_sync = 2*time_sync - 1;
@@ -13,7 +13,7 @@ time_sync = 2*time_sync - 1;
 pilot_size = 10;
 pilot = transpose(round(rand(1, pilot_size)));
 pilot = 2*pilot - 1;
-period_pilot = 100;
+period_pilot = 50;
 
 % Parameters
 sign_len = size(cdata,1) * size(cdata,2); %8208; % 16QAM 4 bits per symbol

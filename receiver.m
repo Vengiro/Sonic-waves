@@ -2,7 +2,7 @@
 load("receivedsignal.mat");
 yt = receivedsignal;
 % 1 if we use the MMSE-LE equalizer
-MMSE_LE = 1;
+MMSE_LE = 0;
 
 % Timing recovery 
 window = T/8;
@@ -116,7 +116,7 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
             % ek = vk - xk
             ek = vk_pilot - pilot;
             ek = transpose(ek);
-            disp(norm(ek));
+            
             % wm = wm - mu * ek * complex conj(zk)
             wm = wm - mu*ek*conj(pilot_received);
         end
@@ -132,15 +132,12 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
      
     %end
     
-    disp("vk");
-    if MMSE_LE
-        vk = vk_same
-    else
-        % detector
-        % vk = zk/h0
-        %vk = message_bits / h0_hat;
-        vk = message_bits / h0_hat
-    end
+   
+    % detector
+    % vk = zk/h0
+    %vk = message_bits / h0_hat;
+    vk = message_bits / h0_hat;
+    
 
     appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
     non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
@@ -207,107 +204,10 @@ if QAM == 1
     % Convert symbol indices to binary
     % detected_test = de2bi(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
     %detected = dec2bin(symbol_idx, 4); % 4 bits per symbol
-    detected = zeros(size(symbol_idx, 1), 4);
-    for i = 1:size(symbol_idx, 1)
-        if symbol_idx(i) == 0
-            detected(i,1) = 0;
-            detected(i, 2) = 0;
-            detected(i, 3) = 0;
-            detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 1
-              detected(i,1) = 0;
-              detected(i, 2) = 0;
-              detected(i, 3) = 0;
-              detected(i, 4) = 1;
-        end
-        if symbol_idx(i) == 2
-              detected(i,1) = 0;
-              detected(i, 2) = 0;
-              detected(i, 3) = 1;
-              detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 3
-              detected(i,1) = 0;
-              detected(i, 2) = 0;
-              detected(i, 3) = 1;
-              detected(i, 4) = 1;
-        end
-        if symbol_idx(i) == 4
-              detected(i,1) = 0;
-              detected(i, 2) = 1;
-              detected(i, 3) = 0;
-              detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 5
-              detected(i,1) = 0;
-              detected(i, 2) = 1;
-              detected(i, 3) = 0;
-              detected(i, 4) = 1;
-        end
-        if symbol_idx(i) == 6
-              detected(i,1) = 0;
-              detected(i, 2) = 1;
-              detected(i, 3) = 1;
-              detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 7
-              detected(i,1) = 0;
-              detected(i, 2) = 1;
-              detected(i, 3) = 1;
-              detected(i, 4) = 1;
-        end
-        if symbol_idx(i) == 8
-              detected(i,1) = 1;
-              detected(i, 2) = 0;
-              detected(i, 3) = 0;
-              detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 9
-              detected(i,1) = 1;
-              detected(i, 2) = 0;
-              detected(i, 3) = 0;
-              detected(i, 4) = 1;
-        end
-        if symbol_idx(i) == 10
-              detected(i,1) = 1;
-              detected(i, 2) = 0;
-              detected(i, 3) = 1;
-              detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 11
-              detected(i,1) = 1;
-              detected(i, 2) = 0;
-              detected(i, 3) = 1;
-              detected(i, 4) = 1;
-        end
-        if symbol_idx(i) == 12
-              detected(i,1) = 1;
-              detected(i, 2) = 1;
-              detected(i, 3) = 0;
-              detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 13
-              detected(i,1) = 1;
-              detected(i, 2) = 1;
-              detected(i, 3) = 0;
-              detected(i, 4) = 1;
-        end
-        if symbol_idx(i) == 14
-              detected(i,1) = 1;
-              detected(i, 2) = 1;
-              detected(i, 3) = 1;
-              detected(i, 4) = 0;
-        end
-        if symbol_idx(i) == 15
-              detected(i,1) = 1;
-              detected(i, 2) = 1;
-              detected(i, 3) = 1;
-              detected(i, 4) = 1;
-        end
-    end
+    detected = dec2bin(symbol_idx, 4);  % 4 bits per symbol
 
-    bits_hat = reshape(transpose(detected), size(detected,1) * size(detected,2), 1);
+    % Convert the binary string array into a logical array (0 or 1)
+    bits_hat = reshape(detected' == '1', [], 1);
 end
 
 if QAM == 0
@@ -323,7 +223,7 @@ BER = mean(bits_hat ~= bits);
 disp(['BER is ', num2str(BER)])
 zk = (zk>=0);
 zk = 2*zk-1;
-BER = mean(zk(1:200) ~= time_sync);
+BER = mean(zk(1:sync_size) ~= time_sync);
 disp(['BER for timing sync is ', num2str(BER)])
 
 % Find error locations
@@ -364,6 +264,16 @@ img_matrix = reshape(img_pixels, img_height, img_width);
 % Write the image to a BMP file
 imwrite(img_matrix, 'demodulated_image.bmp');
 disp('Image saved as demodulated_image.bmp');
+
+figure;
+subplot(1, 2, 1);
+imshow(cdata, []);
+title('Original Image');
+
+% Display the demodulated image
+subplot(1, 2, 2);
+imshow(img_matrix, []);
+title('Demodulated Image');
 
 
 % % required plots:

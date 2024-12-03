@@ -1,9 +1,9 @@
 % Demodulation
-
+load("receivedsignal.mat")
 yt = receivedsignal;
 
 
-% Timing recovery 
+% Timing recovery
 window = T/8;
 num_T_values = 101;
 T_range =  linspace(T-window, T+window, num_T_values);  % Range of T values to test
@@ -32,24 +32,24 @@ for T_i = T_range
 
     % Find the maximum correlation and its corresponding lag
     [current_max_val, max_idx] = max(corr_vals);
-    
+
     % Update best values if a higher correlation is found
     if current_max_val > max_corr_val
         max_corr_val = current_max_val;
         best_T = T_i;
         best_tau = lags(max_idx);  % tau is the lag corresponding to max correlation
     end
-   
+
 end
 
 % Matched filter
-wt = flipud(pulse); 
+wt = flipud(pulse);
 
 % Filter with matched filter
-zt = conv(wt,yt)*(1/ov_samp); % '1/fs' simply serves as 'delta' to approximate integral as sum 
+zt = conv(wt,yt)*(1/ov_samp); % '1/fs' simply serves as 'delta' to approximate integral as sum
 
 % Sample filtered signal
-zk = zt(ceil(Ns/2)+best_tau:floor(fs*best_T):end); 
+zk = zt(ceil(Ns/2)+best_tau:floor(fs*best_T):end);
 zk = zk(1:LL);
 zk_norec = zt(ceil(Ns/2):ov_samp:end);
 zk_norec = zk_norec(1:LL);
@@ -57,17 +57,17 @@ zk_norec = zk_norec(1:LL);
 % I/Q signal space: constellation and samples decoded
 % Assuming zk contains complex values
 
-% 
+%
 % % Assuming zk contains complex values
 % figure;
 % scatter(real(zk_norec), imag(zk_norec),'yellow', 'filled'); % Scatter plot of real vs imaginary parts of zk
-% 
+%
 % % Plot formatting
 % xlabel('Real Part');
 % ylabel('Imaginary Part');
 % title('Constellation Diagram of z_k');
 % grid on;
-% 
+%
 % % Optional: Add reference points for the ideal constellation points
 % hold on;
 % scatter([-1, 1], [0, 0], 'rx', 'LineWidth', 2); % Ideal points for BPSK (e.g., -1 and 1 on the real axis)
@@ -92,7 +92,11 @@ non_equalized = zeros(sign_len, 1);
 % this tracks the loop number so that the correct place in message_number
 % is filled in
 msg_idx = 0;
-
+L1 = -2;
+L2 = 2;
+filter_len = L2 - L1 + 1;
+wm = zeros(filter_len, 1);
+mu = 0.1; % step size
 for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     % pilot sequence has length pilot_size
@@ -103,22 +107,34 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     message_bits = zk(sync_size + i + pilot_size: message_end_index);
 
-    % use pilot sequence to find h0
-    % receiver knows original pilot sequence = pilot
-   
-    % using transpose in place of hermitian
-    
-    h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot);
+    % MMSE-LE
+    % LMS algorithm
+    pilot_received_padded = [zeros(-L1, 1); pilot_received(:); zeros(L2, 1)];
+    vk_full = conv(pilot_received_padded, conj(flipud(wm)), 'valid');
+    vk = vk_full(1:pilot_size);
+    ek = vk - pilot;
+    for k = 1:pilot_size
+        pilot_window = flipud(pilot_received_padded(k:k - L1 + L2));
+        wm = wm - mu * ek(k) * conj(pilot_window);
+    end
 
-    % detector
-    % vk = zk/h0
-    vk = message_bits / h0_hat;
+    % use pilot to find error. ek = vk - xk
+    % pilot_error = pilot_received - pilot;
 
-    appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk;
+    % equalizer concept: vk = wm * zk
+    % wm found through LMS trial and error
+    message_padded = [zeros(-L1, 1); message_bits(:); zeros(L2, 1)];
+    vk_message = conv(message_padded, conj(flipud(wm)), 'valid');
+    vk_message = vk_message(1:length(message_bits));  % Match size to message_bits
+
+
+    plot(real(wm), imag(wm), 'o');
+    title('Evolution of Filter Weights');
+    appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk_message;
     non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
 
     msg_idx = msg_idx + 1;
-    
+
 end
 
 figure;
@@ -197,15 +213,15 @@ for t = 1:len_res
         best_metric = inf;
         best_prev_state = -1;
         best_uncoded_bits = -1;
-        
+
         % Check transitions from all previous states
         for prev_state = 1:num_states
             for uncoded_bits = 0:(2^num_uncoded_bits - 1)
                 % Convert uncoded bits to binary vector
                 uncoded_grayInd = gray_code(uncoded_bits+1);
-                
+
                 % Calculate the cost of transitioning from prev_state to current state
-           
+
                 if trellis_matrix(prev_state, state) == Inf
                     transition_cost = Inf;
                 else
@@ -214,7 +230,7 @@ for t = 1:len_res
                 end
 
                 total_metric = path_metric(prev_state, t) + transition_cost;
-                
+
                 if total_metric < best_metric
                     best_metric = total_metric;
                     best_prev_state = prev_state;
@@ -222,7 +238,7 @@ for t = 1:len_res
                 end
             end
         end
-        
+
         % Update path metric and backtracking table
         path_metric(state, t+1) = best_metric;
         backtracking(state, t+1) = best_prev_state;
@@ -237,16 +253,16 @@ end
 decoded_4bits = zeros(len_res, 1);
 decoded_bits = zeros(len_res*3, 1);
 for t = len_res+1:-1:2
-    
-    
+
+
     % Append coded bit (decoding based on trellis)
     prev_state = backtracking(final_state, t);
-    
+
     msb_bits = de2bi(uncoded_bits_table(final_state, t-1), 2, 'left-msb');
     decoded_bits(3*(t-1)-2) = msb_bits(1);
     decoded_bits(3*(t-1)-1) = msb_bits(2);
     decoded_bits(3*(t-1)) = decoding_map(prev_state, final_state);
-    
+
     decoded_4bits(t-1) = uncoded_bits_table(final_state, t-1) * 4 + trellis_matrix(prev_state, final_state);
     final_state = prev_state;
 end
@@ -334,40 +350,40 @@ img_matrix = reshape(img_pixels, img_height, img_width);
 imwrite(img_matrix, 'demodulated_image.bmp');
 disp('Image saved as demodulated_image.bmp');
 
-figure; 
-subplot(1, 2, 1); 
-imshow(cdata, []); 
-title('Original Image'); 
+figure;
+subplot(1, 2, 1);
+imshow(cdata, []);
+title('Original Image');
 
 % Display the demodulated image
-subplot(1, 2, 2); 
-imshow(img_matrix, []); 
-title('Demodulated Image'); 
+subplot(1, 2, 2);
+imshow(img_matrix, []);
+title('Demodulated Image');
 
 % % required plots:
 % % pulse time and frequency included in transmitter
-% 
+%
 % % x(t) time and frequency from transmitterPlots.m
-% 
+%
 % % x(t) time domain
 % time = linspace(0, t_constr,  t_constr*fs);
 % time = time*1e6;
-% figure 
+% figure
 % plot(time(1:length(xt)), real(xt), 'b');
 % hold on
-% 
+%
 % plot(time(1:length(xt)), imag(xt),'r');
 % legend('real','imag');
 % ylabel("x(t)");
 % xlabel('μs');
 % title('Transmit Signal, Time Domain');
-% 
+%
 % % x(t) frquency domain
-% F_xt = fftshift(fft(xt));           
+% F_xt = fftshift(fft(xt));
 % len = length(xt);
 % fr = linspace(-0.5, 0.5, len)*fs;
 % figure;
-% 
+%
 % plot(fr, abs(real(F_xt)/len), 'b');
 % hold on
 % plot(fr, abs(imag(F_xt)/len), 'r');
@@ -375,30 +391,30 @@ title('Demodulated Image');
 % ylabel("|X(f)|");
 % xlabel('Hz');
 % title('Transmit Signal, Frequency Domain');
-% 
+%
 % % y(t) time and frequency from transmitterPlots
 % % y(t) time domain
 % yt = receivedsignal;
 % fact = length(yt)/(t_constr*fs);
 % time = linspace(0, (1e6)*t_constr*fact, length(yt));
-% figure 
+% figure
 % plot(time(1:length(yt)), real(yt), 'b');
 % hold on
-% 
+%
 % plot(time(1:length(yt)), imag(yt),'r');
 % legend('real','imag')
 % ylabel("y(t)");
 % xlabel('μs');
 % title('Received Signal, Time Domain');
-% 
-% 
+%
+%
 % % y(t) frquency domain
 % F_yt = fftshift(fft(yt));
 % len = length(yt);
 % fr = linspace(-0.5, 0.5, len)*fs;
-% 
+%
 % figure;
-% 
+%
 % plot(fr, abs(real(F_yt)/len), 'b');
 % hold on
 % plot(fr, abs(imag(F_yt)/len), 'r');
@@ -406,35 +422,35 @@ title('Demodulated Image');
 % ylabel("|Y(f)|");
 % xlabel('Hz');
 % title('Received Signal, Frequency Domain');
-% 
-% 
+%
+%
 % % zk
 % zk_linspace = linspace(1, length(zk), length(zk));
 % figure
 % plot(zk_linspace, zk);
 % ylabel("zk");
 % title('Sampler Output');
-% 
+%
 % % y(t) after timing sync (time)
 % yt_timing = receivedsignal(tau:end);
 % fact = length(yt_timing)/(t_constr*fs);
 % time = linspace(0, (1e6)*t_constr*fact, length(yt_timing));
-% figure 
+% figure
 % plot(time(1:length(yt_timing)), real(yt_timing), 'b');
 % hold on
-% 
+%
 % plot(time(1:length(yt_timing)), imag(yt_timing),'r');
 % legend('real','imag')
 % ylabel("y(t)");
 % xlabel('μs');
 % title('Received Signal after Time Synchronization, Time Domain');
-% 
+%
 % F_yt = fftshift(fft(yt_timing));
 % len = length(yt_timing);
 % fr = linspace(-0.5, 0.5, len)*fs;
-% 
+%
 % figure;
-% 
+%
 % plot(fr, abs(real(F_yt)/len), 'b');
 % hold on
 % plot(fr, abs(imag(F_yt)/len), 'r');
@@ -442,7 +458,7 @@ title('Demodulated Image');
 % ylabel("|Y(f)|");
 % xlabel('Hz');
 % title('Received Signal, after Time Synchronization, Frequency Domain');
-% 
+%
 % % vk
 % vk_linspace = linspace(1, length(appended), length(appended));
 % figure
