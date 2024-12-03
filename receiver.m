@@ -326,6 +326,8 @@ zk = 2*zk-1;
 BER = mean(zk(1:sync_size) ~= time_sync);
 disp(['BER for timing sync is ', num2str(BER)])
 
+disp("Symbol energy for 16-QAM: d^2/6 * (M - 1) = 4/6*15 = 10");
+
 % Find error locations
 error_locations = (bits_hat ~= bits);
 
@@ -376,108 +378,109 @@ imshow(img_matrix, []);
 title('Demodulated Image');
 
 
-% % required plots:
-% % pulse time and frequency included in transmitter
-% 
-% % x(t) time and frequency from transmitterPlots.m
-% 
-% % x(t) time domain
-% time = linspace(0, t_constr,  t_constr*fs);
-% time = time*1e6;
-% figure 
-% plot(time(1:length(xt)), real(xt), 'b');
-% hold on
-% 
-% plot(time(1:length(xt)), imag(xt),'r');
-% legend('real','imag');
-% ylabel("x(t)");
-% xlabel('μs');
-% title('Transmit Signal, Time Domain');
-% 
-% % x(t) frquency domain
-% F_xt = fftshift(fft(xt));           
-% len = length(xt);
-% fr = linspace(-0.5, 0.5, len)*fs;
-% figure;
-% 
-% plot(fr, abs(real(F_xt)/len), 'b');
-% hold on
-% plot(fr, abs(imag(F_xt)/len), 'r');
-% legend('real','imag');
-% ylabel("|X(f)|");
-% xlabel('Hz');
-% title('Transmit Signal, Frequency Domain');
-% 
-% % y(t) time and frequency from transmitterPlots
-% % y(t) time domain
-% yt = receivedsignal;
-% fact = length(yt)/(t_constr*fs);
-% time = linspace(0, (1e6)*t_constr*fact, length(yt));
-% figure 
-% plot(time(1:length(yt)), real(yt), 'b');
-% hold on
-% 
-% plot(time(1:length(yt)), imag(yt),'r');
-% legend('real','imag')
-% ylabel("y(t)");
-% xlabel('μs');
-% title('Received Signal, Time Domain');
-% 
-% 
-% % y(t) frquency domain
-% F_yt = fftshift(fft(yt));
-% len = length(yt);
-% fr = linspace(-0.5, 0.5, len)*fs;
-% 
-% figure;
-% 
-% plot(fr, abs(real(F_yt)/len), 'b');
-% hold on
-% plot(fr, abs(imag(F_yt)/len), 'r');
-% legend('real','imag')
-% ylabel("|Y(f)|");
-% xlabel('Hz');
-% title('Received Signal, Frequency Domain');
-% 
-% 
-% % zk
-% zk_linspace = linspace(1, length(zk), length(zk));
-% figure
-% plot(zk_linspace, zk);
-% ylabel("zk");
-% title('Sampler Output');
-% 
-% % y(t) after timing sync (time)
+% required plots:
+% pulse time and frequency included in transmitter
+
+% x(t) time and frequency from transmitterPlots.m
+
+% x(t) time domain
+time = linspace(0, t_constr,  t_constr*fs);
+time = time*1e6;
+figure 
+plot(time(1:length(xt)), real(xt), 'b');
+hold on
+
+plot(time(1:length(xt)), imag(xt),'r');
+legend('real','imag');
+ylabel("x(t)");
+xlabel('μs');
+title('Transmit Signal, Time Domain');
+
+% x(t) frquency domain
+F_xt = fftshift(fft(xt));           
+len = length(xt);
+fr = linspace(-0.5, 0.5, len)*fs;
+figure;
+
+plot(fr, abs(real(F_xt)/len), 'b');
+hold on
+plot(fr, abs(imag(F_xt)/len), 'r');
+legend('real','imag');
+ylabel("|X(f)|");
+xlabel('Hz');
+title('Transmit Signal, Frequency Domain');
+
+% y(t) time and frequency from transmitterPlots
+% y(t) time domain
+yt = receivedsignal;
+fact = length(yt)/(t_constr*fs);
+time = linspace(0, (1e6)*t_constr*fact, length(yt));
+figure 
+plot(time(1:length(yt)), real(yt), 'b');
+hold on
+
+plot(time(1:length(yt)), imag(yt),'r');
+legend('real','imag')
+ylabel("y(t)");
+xlabel('μs');
+title('Received Signal, Time Domain');
+
+
+% y(t) frquency domain
+F_yt = fftshift(fft(yt));
+len = length(yt);
+fr = linspace(-0.5, 0.5, len)*fs;
+
+figure;
+
+plot(fr, abs(real(F_yt)/len), 'b');
+hold on
+plot(fr, abs(imag(F_yt)/len), 'r');
+legend('real','imag')
+ylabel("|Y(f)|");
+xlabel('Hz');
+title('Received Signal, Frequency Domain');
+
+
+% zk
+zk_linspace = linspace(1, length(zk), length(zk));
+figure
+plot(zk_linspace, zk);
+ylabel("zk");
+title('Sampler Output');
+
+% y(t) after timing sync (time)
 % yt_timing = receivedsignal(tau:end);
-% fact = length(yt_timing)/(t_constr*fs);
-% time = linspace(0, (1e6)*t_constr*fact, length(yt_timing));
-% figure 
-% plot(time(1:length(yt_timing)), real(yt_timing), 'b');
-% hold on
-% 
-% plot(time(1:length(yt_timing)), imag(yt_timing),'r');
-% legend('real','imag')
-% ylabel("y(t)");
-% xlabel('μs');
-% title('Received Signal after Time Synchronization, Time Domain');
-% 
-% F_yt = fftshift(fft(yt_timing));
-% len = length(yt_timing);
-% fr = linspace(-0.5, 0.5, len)*fs;
-% 
-% figure;
-% 
-% plot(fr, abs(real(F_yt)/len), 'b');
-% hold on
-% plot(fr, abs(imag(F_yt)/len), 'r');
-% legend('real','imag')
-% ylabel("|Y(f)|");
-% xlabel('Hz');
-% title('Received Signal, after Time Synchronization, Frequency Domain');
-% 
-% % vk
-% vk_linspace = linspace(1, length(appended), length(appended));
-% figure
-% plot(vk_linspace, appended);
-% ylabel("vk");
-% title('Equalizer Output Samples');
+yt_timing = receivedsignal(best_tau:end);
+fact = length(yt_timing)/(t_constr*fs);
+time = linspace(0, (1e6)*t_constr*fact, length(yt_timing));
+figure 
+plot(time(1:length(yt_timing)), real(yt_timing), 'b');
+hold on
+
+plot(time(1:length(yt_timing)), imag(yt_timing),'r');
+legend('real','imag')
+ylabel("y(t)");
+xlabel('μs');
+title('Received Signal after Time Synchronization, Time Domain');
+
+F_yt = fftshift(fft(yt_timing));
+len = length(yt_timing);
+fr = linspace(-0.5, 0.5, len)*fs;
+
+figure;
+
+plot(fr, abs(real(F_yt)/len), 'b');
+hold on
+plot(fr, abs(imag(F_yt)/len), 'r');
+legend('real','imag')
+ylabel("|Y(f)|");
+xlabel('Hz');
+title('Received Signal, after Time Synchronization, Frequency Domain');
+
+% vk
+vk_linspace = linspace(1, length(appended), length(appended));
+figure
+plot(vk_linspace, appended);
+ylabel("vk");
+title('Equalizer Output Samples');
