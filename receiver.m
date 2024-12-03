@@ -204,10 +204,110 @@ if QAM == 1
     % Convert symbol indices to binary
     % detected_test = de2bi(symbol_idx, 4, 'left-msb'); % 4 bits per symbol
     %detected = dec2bin(symbol_idx, 4); % 4 bits per symbol
-    detected = dec2bin(symbol_idx, 4);  % 4 bits per symbol
+    % detected_comparison = dec2bin(symbol_idx, 4);  % 4 bits per symbol
+    detected = zeros(size(symbol_idx, 1), 4);
+    for i = 1:size(symbol_idx, 1)
+        if symbol_idx(i) == 0
+            detected(i,1) = 0;
+            detected(i, 2) = 0;
+            detected(i, 3) = 0;
+            detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 1
+              detected(i,1) = 0;
+              detected(i, 2) = 0;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 2
+              detected(i,1) = 0;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 3
+              detected(i,1) = 0;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 4
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 5
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 6
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 7
+              detected(i,1) = 0;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 8
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 0;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 9
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 10
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 11
+              detected(i,1) = 1;
+              detected(i, 2) = 0;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 12
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 13
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 0;
+              detected(i, 4) = 1;
+        end
+        if symbol_idx(i) == 14
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 0;
+        end
+        if symbol_idx(i) == 15
+              detected(i,1) = 1;
+              detected(i, 2) = 1;
+              detected(i, 3) = 1;
+              detected(i, 4) = 1;
+        end
+    end
 
     % Convert the binary string array into a logical array (0 or 1)
-    bits_hat = reshape(detected' == '1', [], 1);
+    % bits_hat_comparison = reshape(detected_comparison' == '1', [], 1);
+    bits_hat = reshape(transpose(detected), size(detected,1) * size(detected,2), 1);
 end
 
 if QAM == 0
