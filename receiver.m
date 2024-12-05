@@ -1,6 +1,6 @@
 % Demodulation
 load("receivedsignal.mat");
-yt = transmitsignal;
+yt = receivedsignal;
 % 1 if we use the MMSE-LE equalizer
 MMSE = 1;
 

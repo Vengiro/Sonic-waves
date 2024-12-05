@@ -2,10 +2,11 @@
 load("receivedsignal.mat")
 yt = receivedsignal;
 
-
+% 1 if we use the MMSE-LE equalizer
+MMSE = 1;
 % Timing recovery
 window = T/8;
-num_T_values = 101;
+num_T_values = 51;
 T_range =  linspace(T-window, T+window, num_T_values);  % Range of T values to test
 max_corr_val = -inf;
 best_T = 0;
@@ -14,11 +15,12 @@ best_tau = 0;
 for T_i = T_range
     % Recalculate pulse and oversampling factor for each T_i
     ov_samp_trec = floor(fs*T_i);  % Update oversampling factor
+    ov_samp_trec = ov_samp_trec-mod(ov_samp_trec, 2);
 
     % Regenerate pulse for this T_i
     Ns_trec = floor(N*ov_samp_trec); % Number of filter samples
     t_pulse_trec = -floor(Ns_trec/2):floor(Ns_trec/2);   % Pulse time vector
-    pulse_trec = sinc(t_pulse_trec/ov_samp_trec);   % sinc pulse
+    pulse_trec = rcosdesign(alpha, N, ov_samp_trec, 'sqrt'); 
     pulse_trec = transpose(pulse_trec)/norm(pulse_trec)/sqrt(1/ov_samp_trec);
 
     % Rebuild y_ideal and z_ideal for the current T_i
@@ -92,11 +94,11 @@ non_equalized = zeros(sign_len, 1);
 % this tracks the loop number so that the correct place in message_number
 % is filled in
 msg_idx = 0;
-L1 = -2;
-L2 = 2;
+L1 = -1;
+L2 = 1;
 filter_len = L2 - L1 + 1;
 wm = zeros(filter_len, 1);
-mu = 0.1; % step size
+mu = 0.01; % step size
 for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     % pilot sequence has length pilot_size
@@ -109,19 +111,30 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
 
     % MMSE-LE
     % LMS algorithm
+    if MMSE == 1
     pilot_received_padded = [zeros(-L1, 1); pilot_received(:); zeros(L2, 1)];
-    vk_full = conv(wm, pilot_received_padded, 'valid');
-    vk = vk_full(1:pilot_size);
-    ek = vk - pilot;
+    for epochs = 1:3000
     for k = 1:pilot_size
-        vk = 0;
-        for m = 1:filter_len
-            vk = vk + wm(m)*pilot_received_padded(k -L1 + L2 - (m-1));
-        end
+        
+        segment = flip(pilot_received_padded(k : k + filter_len - 1));
+        % MATLAB is stupid it takes the hermitian of the first matrix to
+        % make the dot product
+        vk = dot(conj(wm), segment);
+      
+
+        % vk = 0;
+        % for m = 1:filter_len
+        %     vk = vk + wm(m)*segment(m);
+        % end
+
         ek = vk -pilot(k);
-        for m = 1:filter_len
-            wm(m) = wm(m) - mu * ek * conj(pilot_received_padded(k -L1 + L2 - (m-1)););
-        end
+
+        wm = wm - mu*ek*conj(segment);
+      
+        % for m = 1:filter_len
+        %     wm(m) = wm(m) - mu * ek * conj(pilot_received_padded(k + filter_len - m));
+        % end
+    end
     end
 
     % use pilot to find error. ek = vk - xk
@@ -132,7 +145,10 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
     message_padded = [zeros(-L1, 1); message_bits(:); zeros(L2, 1)];
     vk_message = conv(message_padded, (flipud(wm)), 'valid');
     vk_message = vk_message(1:length(message_bits));  % Match size to message_bits
-
+    else
+        h0_hat = dot(pilot, pilot_received) / dot(pilot, pilot);
+        vk_message = message_bits / h0_hat;
+    end
 
     plot(real(wm), imag(wm), 'o');
     title('Evolution of Filter Weights');
@@ -152,10 +168,20 @@ ylabel('Imaginary Part');
 title('Constellation Diagram of equalized signal');
 grid on;
 
-% Optional: Add reference points for the ideal constellation points
+% Plot formatting
+xlabel('Real Part');
+ylabel('Imaginary Part');
+title('Constellation Diagram of equalized signal');
+grid on;
+
 hold on;
-scatter([-1, 1], [0, 0], 'rx', 'LineWidth', 2); % Ideal points for BPSK (e.g., -1 and 1 on the real axis)
-legend('Received Symbols', 'Ideal Symbol Locations');
+scatter(real(mapping), imag(mapping), 'rx', 'LineWidth', 2); % Ideal points (red crosses)
+axis equal;                         % Equal axis for correct circle display
+grid on;                            % Add grid for better visualization
+title('16-PSK Constellation');
+xlabel('In-Phase (I)');
+ylabel('Quadrature (Q)');
+legend('Ideal Symbol Locations');
 hold off;
 
 figure;
@@ -352,9 +378,9 @@ img_pixels = uint8(res_bits * 255);
 % Reshape the array to match the image dimensions
 img_matrix = reshape(img_pixels, img_height, img_width);
 
-% Write the image to a BMP file
-imwrite(img_matrix, 'demodulated_image.bmp');
-disp('Image saved as demodulated_image.bmp');
+% % Write the image to a BMP file
+% imwrite(img_matrix, 'demodulated_image.bmp');
+% disp('Image saved as demodulated_image.bmp');
 
 figure;
 subplot(1, 2, 1);

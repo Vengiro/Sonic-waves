@@ -18,10 +18,10 @@ time_sync = transpose(round(r));
 time_sync = 2*time_sync - 1;
 
 % Equalizer
-pilot_size = 10;
+pilot_size = 3;
 pilot = transpose(round(rand(1, pilot_size)));
 pilot = 2*pilot - 1;
-period_pilot = 50;
+period_pilot = 30;
 
 % Parameters
 original_len = numel(bits);
@@ -33,10 +33,12 @@ LL = sign_len + sync_size + pilot_size*ceil(sign_len/period_pilot); % Total numb
 fs = 200e6;    % Sampled frequency of the signal
 T =  t_constr/LL;    % Period of a symbol (400μs and Passband signal 2 bits per symbol and 1440 bits to transmit)
 ov_samp = floor(fs*T);   % Over-sampling factor (Sampling frequency/symbol rate)
-N = 11; % Length of filter in symbol periods.
+ov_samp = ov_samp-mod(ov_samp, 2);
+N = 9; % Length of filter in symbol periods.
 Ns = floor(N*ov_samp); % Number of filter samples
 t_pulse = -floor(Ns/2):floor(Ns/2);   % Pulse time vector
-pulse = sinc(t_pulse/ov_samp);   % sinc pulse
+alpha = 0.25;
+pulse = rcosdesign(alpha, N, ov_samp, 'sqrt'); 
 pulse = transpose(pulse)/norm(pulse)/sqrt(1/ov_samp);
 
 
