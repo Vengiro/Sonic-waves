@@ -83,12 +83,20 @@ for i = 1:3:length(bits)-2
 
     % Combine uncoded and encoded bits to create symbol index
     uncoded_bits = bits(i:i+1);
-    uncoded_index = bi2de(uncoded_bits, 'left-msb');
+    uncoded_index = 2 * bits(i) + bits(i + 1); % prev. my_uncoded_index
+    % uncoded_index = bi2de(uncoded_bits, 'left-msb');
+    % if my_uncoded_index ~= uncoded_index
+    %     disp("uncoding bits error");
+    % end
     % Apply Gray coding
     gray_index = gray_code(uncoded_index + 1);
 
     encoded_bits = [output1, output2];
-    encoded_index = bi2de(encoded_bits, 'left-msb');
+    encoded_index = 2 * encoded_bits(1) + encoded_bits(2); % prev. my_encoded_index
+    % encoded_index = bi2de(encoded_bits, 'left-msb');
+    % if my_encoded_index ~= encoded_index
+    %     disp("encoding bits error");
+    % end
 
     % Calculate the final symbol index
     symbol_index = gray_index * 4 + encoded_index;
