@@ -73,21 +73,10 @@ if QAM == 1
     ];
     
     % Convert binary groups into decimal indices for the mapping table
-    %indices = bi2de(bits_reshaped, 'left-msb') + 1;  % +1 for MATLAB indexing
-    bits_reshaped_num = zeros(size(bits_reshaped, 1), size(bits_reshaped, 2));
-    for i = 1:size(bits_reshaped, 1)
-        for j = 1:size(bits_reshaped, 2)
-            if bits_reshaped(i, j)
-                bits_reshaped_num(i, j) = 1;
-            else
-                bits_reshaped_num(i, j) = 0;
-            end
-        end
-    end
-    indices = zeros(size(bits_reshaped_num, 1), 1);
-    for i = 1:size(bits_reshaped_num, 1)
-        indices(i) = (bits_reshaped_num(i, 1) * 8 + bits_reshaped_num(i, 2) * 4 + bits_reshaped_num(i, 3) * 2 + bits_reshaped_num(i, 4) * 1) + 1;
-    end
+    bits_as_chars = char(bits_reshaped + '0'); % Convert logical/boolean to '0' and '1'
+
+    % Convert each row of bits to a decimal number
+    indices = bin2dec(bits_as_chars) + 1;
 
     % Map to symbols and normalize
     symbols = mapping(indices);

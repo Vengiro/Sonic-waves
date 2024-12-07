@@ -3,7 +3,7 @@ load("receivedsignal.mat")
 yt = receivedsignal;
 
 % 1 if we use the MMSE-LE equalizer
-MMSE = 1;
+MMSE = 0;
 % Timing recovery
 window = T/8;
 num_T_values = 51;
@@ -57,36 +57,6 @@ zk_norec = zt(ceil(Ns/2):ov_samp:end);
 zk_norec = zk_norec(1:LL);
 
 % I/Q signal space: constellation and samples decoded
-% Assuming zk contains complex values
-
-%
-% % Assuming zk contains complex values
-% figure;
-% scatter(real(zk_norec), imag(zk_norec),'yellow', 'filled'); % Scatter plot of real vs imaginary parts of zk
-%
-% % Plot formatting
-% xlabel('Real Part');
-% ylabel('Imaginary Part');
-% title('Constellation Diagram of z_k');
-% grid on;
-%
-% % Optional: Add reference points for the ideal constellation points
-% hold on;
-% scatter([-1, 1], [0, 0], 'rx', 'LineWidth', 2); % Ideal points for BPSK (e.g., -1 and 1 on the real axis)
-% legend('Received Symbols', 'Ideal Symbol Locations');
-% hold off;
-
-% One-tap equalizer
-% for 1440, zk is size 1690
-% timing sync + 3 * ( pilot + message component)
-
-% timing sync is at the beginning, and has already been used to find the
-% best tau and T for sampling
-% zk_len = size(zk, 1);
-% zk = zk(sync_size + 1:zk_len);
-
-% for loop: for each segment with pilot then message,
-% extract h0 from pilot, apply to message, and add to msg_bits
 
 appended = zeros(sign_len, 1);
 non_equalized = zeros(sign_len, 1);
@@ -122,18 +92,11 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
         vk = dot(conj(wm), segment);
       
 
-        % vk = 0;
-        % for m = 1:filter_len
-        %     vk = vk + wm(m)*segment(m);
-        % end
-
+       
         ek = vk -pilot(k);
 
         wm = wm - mu*ek*conj(segment);
       
-        % for m = 1:filter_len
-        %     wm(m) = wm(m) - mu * ek * conj(pilot_received_padded(k + filter_len - m));
-        % end
     end
     end
 
@@ -150,8 +113,7 @@ for i = 1:(period_pilot + pilot_size):length(zk) - sync_size
         vk_message = message_bits / h0_hat;
     end
 
-    plot(real(wm), imag(wm), 'o');
-    title('Evolution of Filter Weights');
+    
     appended(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = vk_message;
     non_equalized(msg_idx * period_pilot + 1 : (msg_idx * period_pilot + length(message_bits))) = message_bits;
 
@@ -175,9 +137,9 @@ title('Constellation Diagram of equalized signal');
 grid on;
 
 hold on;
-scatter(real(mapping), imag(mapping), 'rx', 'LineWidth', 2); % Ideal points (red crosses)
-axis equal;                         % Equal axis for correct circle display
-grid on;                            % Add grid for better visualization
+scatter(real(mapping), imag(mapping), 'rx', 'LineWidth', 2); 
+axis equal;                         
+grid on;                            
 title('16-PSK Constellation');
 xlabel('In-Phase (I)');
 ylabel('Quadrature (Q)');
@@ -290,7 +252,8 @@ for t = len_res+1:-1:2
     % Append coded bit (decoding based on trellis)
     prev_state = backtracking(final_state, t);
 
-    msb_bits = de2bi(uncoded_bits_table(final_state, t-1), 2, 'left-msb');
+    msb_bits = dec2bin(uncoded_bits_table(final_state, t-1), 2);
+    msb_bits = reshape(msb_bits' == '1', [], 1);
     decoded_bits(3*(t-1)-2) = msb_bits(1);
     decoded_bits(3*(t-1)-1) = msb_bits(2);
     decoded_bits(3*(t-1)) = decoding_map(prev_state, final_state);
@@ -311,8 +274,10 @@ disp(['BER is for the decoded signal ', num2str(mean(original ~= res_bits))]);
 num_bits_per_packet = 4; % Number of bits in each packet
 
 % Convert integers to binary
-encoded_bits = de2bi(encoded_test, num_bits_per_packet, 'left-msb');
-demodulated_bits = de2bi(res_4bits, num_bits_per_packet, 'left-msb');
+encoded_bits = dec2bin(encoded_test, num_bits_per_packet);
+encoded_bits = encoded_bits - '0';
+demodulated_bits = dec2bin(res_4bits, num_bits_per_packet);
+demodulated_bits = demodulated_bits - '0';
 
 % Compute BER for all bits
 bit_errors_all = sum(encoded_bits(:) ~= demodulated_bits(:));
@@ -378,10 +343,8 @@ img_pixels = uint8(res_bits * 255);
 % Reshape the array to match the image dimensions
 img_matrix = reshape(img_pixels, img_height, img_width);
 
-% % Write the image to a BMP file
-% imwrite(img_matrix, 'demodulated_image.bmp');
-% disp('Image saved as demodulated_image.bmp');
 
+% Display the original image
 figure;
 subplot(1, 2, 1);
 imshow(cdata, []);
@@ -392,111 +355,111 @@ subplot(1, 2, 2);
 imshow(img_matrix, []);
 title('Demodulated Image');
 
-% % required plots:
-% % pulse time and frequency included in transmitter
-%
-% % x(t) time and frequency from transmitterPlots.m
-%
-% % x(t) time domain
-% time = linspace(0, t_constr,  t_constr*fs);
-% time = time*1e6;
-% figure
-% plot(time(1:length(xt)), real(xt), 'b');
-% hold on
-%
-% plot(time(1:length(xt)), imag(xt),'r');
-% legend('real','imag');
-% ylabel("x(t)");
-% xlabel('μs');
-% title('Transmit Signal, Time Domain');
-%
-% % x(t) frquency domain
-% F_xt = fftshift(fft(xt));
-% len = length(xt);
-% fr = linspace(-0.5, 0.5, len)*fs;
-% figure;
-%
-% plot(fr, abs(real(F_xt)/len), 'b');
-% hold on
-% plot(fr, abs(imag(F_xt)/len), 'r');
-% legend('real','imag');
-% ylabel("|X(f)|");
-% xlabel('Hz');
-% title('Transmit Signal, Frequency Domain');
-%
-% % y(t) time and frequency from transmitterPlots
-% % y(t) time domain
-% yt = receivedsignal;
-% fact = length(yt)/(t_constr*fs);
-% time = linspace(0, (1e6)*t_constr*fact, length(yt));
-% figure
-% plot(time(1:length(yt)), real(yt), 'b');
-% hold on
-%
-% plot(time(1:length(yt)), imag(yt),'r');
-% legend('real','imag')
-% ylabel("y(t)");
-% xlabel('μs');
-% title('Received Signal, Time Domain');
-%
-%
-% % y(t) frquency domain
-% F_yt = fftshift(fft(yt));
-% len = length(yt);
-% fr = linspace(-0.5, 0.5, len)*fs;
-%
-% figure;
-%
-% plot(fr, abs(real(F_yt)/len), 'b');
-% hold on
-% plot(fr, abs(imag(F_yt)/len), 'r');
-% legend('real','imag')
-% ylabel("|Y(f)|");
-% xlabel('Hz');
-% title('Received Signal, Frequency Domain');
-%
-%
-% % zk
-% zk_linspace = linspace(1, length(zk), length(zk));
-% figure
-% plot(zk_linspace, zk);
-% ylabel("zk");
-% title('Sampler Output');
-%
-% % y(t) after timing sync (time)
-% yt_timing = receivedsignal(tau:end);
-% fact = length(yt_timing)/(t_constr*fs);
-% time = linspace(0, (1e6)*t_constr*fact, length(yt_timing));
-% figure
-% plot(time(1:length(yt_timing)), real(yt_timing), 'b');
-% hold on
-%
-% plot(time(1:length(yt_timing)), imag(yt_timing),'r');
-% legend('real','imag')
-% ylabel("y(t)");
-% xlabel('μs');
-% title('Received Signal after Time Synchronization, Time Domain');
-%
-% F_yt = fftshift(fft(yt_timing));
-% len = length(yt_timing);
-% fr = linspace(-0.5, 0.5, len)*fs;
-%
-% figure;
-%
-% plot(fr, abs(real(F_yt)/len), 'b');
-% hold on
-% plot(fr, abs(imag(F_yt)/len), 'r');
-% legend('real','imag')
-% ylabel("|Y(f)|");
-% xlabel('Hz');
-% title('Received Signal, after Time Synchronization, Frequency Domain');
-%
-% % vk
-% vk_linspace = linspace(1, length(appended), length(appended));
-% figure
-% plot(vk_linspace, appended);
-% ylabel("vk");
-% title('Equalizer Output Samples');
+% required plots:
+% pulse time and frequency included in transmitter
+
+% x(t) time and frequency from transmitterPlots.m
+
+% x(t) time domain
+time = linspace(0, t_constr,  t_constr*fs);
+time = time*1e6;
+figure
+plot(time(1:length(xt)), real(xt), 'b');
+hold on
+
+plot(time(1:length(xt)), imag(xt),'r');
+legend('real','imag');
+ylabel("x(t)");
+xlabel('μs');
+title('Transmit Signal, Time Domain');
+
+% x(t) frquency domain
+F_xt = fftshift(fft(xt));
+len = length(xt);
+fr = linspace(-0.5, 0.5, len)*fs;
+figure;
+
+plot(fr, abs(real(F_xt)/len), 'b');
+hold on
+plot(fr, abs(imag(F_xt)/len), 'r');
+legend('real','imag');
+ylabel("|X(f)|");
+xlabel('Hz');
+title('Transmit Signal, Frequency Domain');
+
+% y(t) time and frequency from transmitterPlots
+% y(t) time domain
+yt = receivedsignal;
+fact = length(yt)/(t_constr*fs);
+time = linspace(0, (1e6)*t_constr*fact, length(yt));
+figure
+plot(time(1:length(yt)), real(yt), 'b');
+hold on
+
+plot(time(1:length(yt)), imag(yt),'r');
+legend('real','imag')
+ylabel("y(t)");
+xlabel('μs');
+title('Received Signal, Time Domain');
+
+
+% y(t) frquency domain
+F_yt = fftshift(fft(yt));
+len = length(yt);
+fr = linspace(-0.5, 0.5, len)*fs;
+
+figure;
+
+plot(fr, abs(real(F_yt)/len), 'b');
+hold on
+plot(fr, abs(imag(F_yt)/len), 'r');
+legend('real','imag')
+ylabel("|Y(f)|");
+xlabel('Hz');
+title('Received Signal, Frequency Domain');
+
+
+% zk
+zk_linspace = linspace(1, length(zk), length(zk));
+figure
+plot(zk_linspace, zk);
+ylabel("zk");
+title('Sampler Output');
+
+% y(t) after timing sync (time)
+yt_timing = receivedsignal(best_tau+1:end);
+fact = length(yt_timing)/(t_constr*fs);
+time = linspace(0, (1e6)*t_constr*fact, length(yt_timing));
+figure
+plot(time(1:length(yt_timing)), real(yt_timing), 'b');
+hold on
+
+plot(time(1:length(yt_timing)), imag(yt_timing),'r');
+legend('real','imag')
+ylabel("y(t)");
+xlabel('μs');
+title('Received Signal after Time Synchronization, Time Domain');
+
+F_yt = fftshift(fft(yt_timing));
+len = length(yt_timing);
+fr = linspace(-0.5, 0.5, len)*fs;
+
+figure;
+
+plot(fr, abs(real(F_yt)/len), 'b');
+hold on
+plot(fr, abs(imag(F_yt)/len), 'r');
+legend('real','imag')
+ylabel("|Y(f)|");
+xlabel('Hz');
+title('Received Signal, after Time Synchronization, Frequency Domain');
+
+% vk
+vk_linspace = linspace(1, length(appended), length(appended));
+figure
+plot(vk_linspace, appended);
+ylabel("vk");
+title('Equalizer Output Samples');
 
 
 
